@@ -1,0 +1,32 @@
+[package]
+name = "stalcraft-jvm-wrapper"
+version = "1.0.0"
+description = "JVM Optimization Wrapper for STALCRAFT"
+authors = ["nyrok"]
+license = "MIT"
+repository = ""
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-shell = "2"
+tauri-plugin-dialog = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+windows-sys = { version = "0.59", features = [
+    "Win32_System_Threading",
+    "Win32_System_Registry",
+    "Win32_System_ProcessStatus",
+    "Win32_System_Memory",
+    "Win32_System_SystemInformation",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_Foundation",
+    "Win32_Security",
+] }
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]

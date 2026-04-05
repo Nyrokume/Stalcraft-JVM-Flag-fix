@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STALCRAFT JVM Wrapper</title>
+    <link rel="stylesheet" href="./assets/styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script type="module" src="./main.js"></script>
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div class="loading-screen" id="loading-screen">
+        <!-- Loading Screen Title Bar -->
+        <div class="loading-titlebar" data-tauri-drag-region>
+            <div class="titlebar-left">
+                <svg class="titlebar-logo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                    <path d="M2 17l10 5 10-5"/>
+                    <path d="M2 12l10 5 10-5"/>
+                </svg>
+                <span class="titlebar-title">STALCRAFT JVM Wrapper</span>
+            </div>
+            <div class="titlebar-controls">
+                <button class="titlebar-btn titlebar-minimize" id="btn-minimize-loading" title="Minimize">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="5" y1="12" x2="19" y2="12"/>
+                    </svg>
+                </button>
+                <button class="titlebar-btn titlebar-maximize" id="btn-maximize-loading" title="Maximize">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="5" y="5" width="14" height="14" rx="1"/>
+                    </svg>
+                </button>
+                <button class="titlebar-btn titlebar-close" id="btn-close-loading" title="Close">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        
+        <div class="loading-content">
+            <div class="loading-logo">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                    <path d="M2 17l10 5 10-5"/>
+                    <path d="M2 12l10 5 10-5"/>
+                </svg>
+            </div>
+            <div class="loading-title">
+                <h1>STALCRAFT <span class="accent">JVM</span> WRAPPER</h1>
+                <p class="loading-subtitle">Initializing System...</p>
+            </div>
+            <div class="loading-bar-container">
+                <div class="loading-bar">
+                    <div class="loading-bar-fill" id="loading-progress"></div>
+                </div>
+            </div>
+            <div class="loading-status" id="loading-status">Detecting hardware...</div>
+        </div>
+    </div>
+
+    <!-- Custom Title Bar -->
+    <div class="custom-titlebar" data-tauri-drag-region>
+        <div class="titlebar-left">
+            <svg class="titlebar-logo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                <path d="M2 17l10 5 10-5"/>
+                <path d="M2 12l10 5 10-5"/>
+            </svg>
+            <span class="titlebar-title">STALCRAFT JVM Wrapper</span>
+        </div>
+        <div class="titlebar-controls">
+            <button class="titlebar-btn titlebar-minimize" id="btn-minimize" title="Minimize">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+            </button>
+            <button class="titlebar-btn titlebar-maximize" id="btn-maximize" title="Maximize">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="5" y="5" width="14" height="14" rx="1"/>
+                </svg>
+            </button>
+            <button class="titlebar-btn titlebar-close" id="btn-close" title="Close">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="6" y1="6" x2="18" y2="18"/>
+                    <line x1="18" y1="6" x2="6" y2="18"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+    
+    <div class="app-wrapper">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-left">
+                <div class="logo-container">
+                    <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                        <path d="M2 17l10 5 10-5"/>
+                        <path d="M2 12l10 5 10-5"/>
+                    </svg>
+                </div>
+                <div class="title-block">
+                    <h1>STALCRAFT <span class="accent">JVM</span> WRAPPER</h1>
+                    <p class="subtitle">DYNAMIC JVM OPTIMIZATION FOR YOUR HARDWARE // V2.4.1-BETA</p>
+                </div>
+            </div>
+            <div class="header-right">
+                <div class="system-status">
+                    <svg class="status-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                    </svg>
+                    <span class="status-text">SYSTEM ONLINE</span>
+                </div>
+                <div class="timestamp" id="current-time">2026-04-05 // 00:32:01</div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Left Column -->
+            <div class="left-column">
+                <!-- Hardware Profile -->
+                <section class="panel hardware-profile">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <svg class="panel-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="4" y="4" width="16" height="16" rx="2" ry="2"/>
+                                <rect x="9" y="9" width="6" height="6"/>
+                                <line x1="9" y1="1" x2="9" y2="4"/>
+                                <line x1="15" y1="1" x2="15" y2="4"/>
+                                <line x1="9" y1="20" x2="9" y2="23"/>
+                                <line x1="15" y1="20" x2="15" y2="23"/>
+                                <line x1="20" y1="9" x2="23" y2="9"/>
+                                <line x1="20" y1="14" x2="23" y2="14"/>
+                                <line x1="1" y1="9" x2="4" y2="9"/>
+                                <line x1="1" y1="14" x2="4" y2="14"/>
+                            </svg>
+                            HARDWARE PROFILE
+                        </div>
+                        <button class="refresh-btn" id="refresh-btn" title="Refresh">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="23 4 23 10 17 10"/>
+                                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="panel-divider"></div>
+                    <div class="hardware-list">
+                        <div class="hardware-item">
+                            <span class="hw-label">CPU</span>
+                            <div class="hw-value" id="cpu-info">
+                                <div class="hw-main">--</div>
+                                <div class="hw-sub">Detecting...</div>
+                            </div>
+                        </div>
+                        <div class="hardware-item">
+                            <span class="hw-label">GPU</span>
+                            <div class="hw-value" id="gpu-info">
+                                <div class="hw-main">--</div>
+                                <div class="hw-sub">Detecting...</div>
+                            </div>
+                        </div>
+                        <div class="hardware-item">
+                            <span class="hw-label">RAM</span>
+                            <div class="hw-value" id="ram-info">
+                                <div class="ram-bar-container">
+                                    <div class="ram-bar">
+                                        <div class="ram-bar-fill" id="ram-fill" style="width: 0%"></div>
+                                    </div>
+                                </div>
+                                <div class="ram-text">
+                                    <span id="ram-total">-- GB</span>
+                                    <span class="ram-available" id="ram-available">-- GB Available</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="hardware-item">
+                            <span class="hw-label">JVM</span>
+                            <div class="hw-value" id="jvm-info">
+                                <div class="hw-main">OpenJDK 17.0.8</div>
+                                <div class="hw-sub">64-Bit Server VM</div>
+                            </div>
+                        </div>
+                        <div class="hardware-item">
+                            <span class="hw-label">TARGET HEAP</span>
+                            <div class="hw-value" id="heap-info">
+                                <div class="hw-main accent" id="heap-size">-- MB</div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- IFEO Registry -->
+                <section class="panel ifeo-registry">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <svg class="panel-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <ellipse cx="12" cy="5" rx="9" ry="3"/>
+                                <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
+                                <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+                            </svg>
+                            IFEO REGISTRY
+                        </div>
+                        <div class="status-badge" id="ifeo-status">
+                            <span class="status-dot inactive"></span>
+                            INACTIVE
+                        </div>
+                    </div>
+                    <div class="panel-divider"></div>
+                    <div class="ifeo-content">
+                        <p class="ifeo-description">
+                            Image File Execution Options (IFEO) allows the wrapper to intercept the game launch and apply optimized JVM parameters automatically.
+                        </p>
+                        <div class="ifeo-buttons">
+                            <button class="action-btn install-btn" id="install-btn">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                                    <polyline points="22 4 12 14.01 9 11.01"/>
+                                </svg>
+                                INSTALL
+                            </button>
+                            <button class="action-btn uninstall-btn" id="uninstall-btn">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"/>
+                                    <line x1="15" y1="9" x2="9" y2="15"/>
+                                    <line x1="9" y1="9" x2="15" y2="15"/>
+                                </svg>
+                                UNINSTALL
+                            </button>
+                            <button class="action-btn verify-btn" id="verify-btn">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
+                                </svg>
+                                VERIFY
+                            </button>
+                        </div>
+                        <div class="ifeo-result" id="ifeo-result"></div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Right Column -->
+            <div class="right-column">
+                <!-- Execution Protocol -->
+                <section class="panel execution-protocol">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <svg class="panel-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                            </svg>
+                            EXECUTION PROTOCOL
+                        </div>
+                    </div>
+                    <div class="execution-content">
+                        <div class="path-inputs">
+                            <div class="input-section">
+                                <label class="input-label" for="game-dir">GAME DIRECTORY</label>
+                                <div class="input-container with-button">
+                                    <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                                    </svg>
+                                    <input type="text" id="game-dir" placeholder="C:\Games\STALCRAFT\game" value="">
+                                    <button class="browse-btn" id="browse-dir-btn" title="Select game directory">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="input-section">
+                                <label class="input-label" for="target-path">TARGET EXECUTABLE</label>
+                                <div class="input-container with-button">
+                                    <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <rect x="4" y="4" width="16" height="16" rx="2"/>
+                                        <path d="M9 9h6v6H9z"/>
+                                    </svg>
+                                    <input type="text" id="target-path" placeholder="stalcraft.exe" value="">
+                                    <button class="browse-btn" id="browse-btn" title="Select executable">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <rect x="4" y="4" width="16" height="16" rx="2"/>
+                                            <path d="M9 9h6v6H9z"/>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <button class="launch-btn" id="launch-btn">
+                            <svg viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                                <polygon points="5 3 19 12 5 21 5 3"/>
+                            </svg>
+                            LAUNCH GAME
+                        </button>
+                        <div class="launch-warning" id="launch-warning">
+                            <p>WARNING: IFEO WRAPPER MUST BE ACTIVE TO LAUNCH OPTIMIZED INSTANCE.</p>
+                            <p>EXENS ALERT! DUE TO THE CHANGED JVM FLAGS, EXENS DOES NOT START CORRECTLY, WHICH CAUSES WARNING NOFTICATIONS.</p>
+                        </div>
+                        <div class="launch-result" id="launch-result"></div>
+                    </div>
+                </section>
+
+                <!-- System Output Log -->
+                <section class="panel system-log">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <svg class="panel-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="4 17 10 11 4 5"/>
+                                <line x1="12" y1="19" x2="20" y2="19"/>
+                            </svg>
+                            SYSTEM OUTPUT LOG
+                        </div>
+                    </div>
+                    <div class="panel-divider"></div>
+                    <div class="log-container" id="log-container">
+                        <div class="log-entry">
+                            <span class="log-time" id="log-time-1">[00:00:00]</span>
+                            <span class="log-arrow">&gt;</span>
+                            <span class="log-text">System initialized. Awaiting commands...</span>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="app-footer">
+            <div class="footer-left">
+                <span class="footer-ru">ОБЕРТКА ОПТИМИЗАЦИИ JVM</span>
+                <span class="footer-divider">|</span>
+                <span class="footer-en">JVM OPTIMIZATION WRAPPER</span>
+            </div>
+            <div class="footer-right">
+                <span class="footer-copyright">UNAUTHORIZED DISTRIBUTION PROHIBITED</span>
+            </div>
+        </footer>
+    </div>
+</body>
+</html>
