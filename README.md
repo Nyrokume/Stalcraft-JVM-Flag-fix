@@ -26,3 +26,4 @@ npm run build  # Production
 The original Go version is available at [https://github.com/SilentBless/stalcraft-jvm-optimization)
 
 ## Speical thx SilentBless
+Devolper first version
