@@ -23,4 +23,6 @@ npm run build  # Production
 
 ## Go Version
 
-The original Go version is available at [I:\GoLang\wrapper](file:///I:/GoLang/wrapper)
+The original Go version is available at [https://github.com/SilentBless/stalcraft-jvm-optimization)
+
+## Speical thx SilentBless
