@@ -4,7 +4,7 @@ Modern GUI JVM optimization wrapper for STALCRAFT built with Tauri.
 
 ## Quick Start
 
-Navigate to [stalcraft-jvm-wrapper/](stalcraft-jvm-wrapper/) and follow the instructions.
+Перейдите в папку [stalcraft-jvm-wrapper/](stalcraft-jvm-wrapper/) и следуйте инструктам.
 
 ```bash
 cd stalcraft-jvm-wrapper
@@ -23,4 +23,7 @@ npm run build  # Production
 
 ## Go Version
 
-The original Go version is available at [I:\GoLang\wrapper](file:///I:/GoLang/wrapper)
+The original Go version is available at [https://github.com/SilentBless/stalcraft-jvm-optimization)
+
+## Speical thx SilentBless
+Devolper first version
