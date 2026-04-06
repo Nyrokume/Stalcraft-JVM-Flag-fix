@@ -13,8 +13,8 @@
     "windows": [
       {
         "title": "STALCRAFT JVM Wrapper",
-        "width": 1200,
-        "height": 800,
+        "width": 1350,
+        "height": 1030,
         "minWidth": 900,
         "minHeight": 700,
         "resizable": true,

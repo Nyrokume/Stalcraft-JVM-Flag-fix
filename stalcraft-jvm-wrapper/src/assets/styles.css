@@ -836,6 +836,115 @@ body {
     color: var(--accent-red);
 }
 
+/* ========== SAFE MODE TOGGLE ========== */
+.launch-options {
+    margin-top: 14px;
+    padding: 10px 14px;
+    background: rgba(245, 158, 11, 0.05);
+    border: 1px solid rgba(245, 158, 11, 0.2);
+    border-radius: 6px;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    user-select: none;
+}
+
+.checkbox-label input[type="checkbox"] {
+    display: none;
+}
+
+.checkmark {
+    width: 18px;
+    height: 18px;
+    border: 2px solid var(--accent-orange);
+    border-radius: 3px;
+    margin-right: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: all 0.2s ease;
+}
+
+.checkbox-label input[type="checkbox"]:checked + .checkmark {
+    background: var(--accent-orange);
+}
+
+.checkbox-label input[type="checkbox"]:checked + .checkmark::after {
+    content: '✓';
+    color: var(--bg-primary);
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.checkbox-text {
+    font-size: 13px;
+    color: var(--text-secondary);
+    letter-spacing: 0.3px;
+}
+
+.checkbox-label:hover .checkmark {
+    border-color: var(--accent-orange);
+    background: rgba(245, 158, 11, 0.1);
+}
+
+.checkbox-label:hover .checkbox-text {
+    color: var(--text-primary);
+}
+
+/* ========== LAUNCH GUIDE ========== */
+.launch-guide {
+    margin-top: 16px;
+    padding: 14px 16px;
+    background: var(--bg-input);
+    border: 1px solid var(--border-primary);
+    border-radius: 6px;
+}
+
+.guide-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+}
+
+.guide-steps {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    counter-reset: step;
+}
+
+.guide-steps li {
+    position: relative;
+    padding: 4px 0 4px 24px;
+    font-size: 14px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    counter-increment: step;
+}
+
+.guide-steps li::before {
+    content: counter(step) ".";
+    position: absolute;
+    left: 0;
+    top: 4px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+}
+
+.guide-steps .highlight {
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
 /* ========== PATH INPUTS ========== */
 .path-inputs {
     display: flex;

@@ -4,8 +4,8 @@ let isTauri = false;
 let currentWindow;
 
 // Element references - will be initialized after DOM loads
-let refreshBtn, installBtn, uninstallBtn, verifyBtn, launchBtn;
-let browseBtn, browseDirBtn, gameDir, targetPath, ifeoResult, launchResult;
+let refreshBtn, installBtn, uninstallBtn, verifyBtn;
+let browseBtn, browseDirBtn, gameDir, targetPath, ifeoResult;
 let logContainer, currentTimeEl;
 let cpuInfo, gpuInfo, ramFill, ramTotal, ramAvailable, heapSize, ifeoStatus;
 
@@ -40,13 +40,11 @@ function initElements() {
     installBtn = document.getElementById('install-btn');
     uninstallBtn = document.getElementById('uninstall-btn');
     verifyBtn = document.getElementById('verify-btn');
-    launchBtn = document.getElementById('launch-btn');
     browseBtn = document.getElementById('browse-btn');
     browseDirBtn = document.getElementById('browse-dir-btn');
     gameDir = document.getElementById('game-dir');
     targetPath = document.getElementById('target-path');
     ifeoResult = document.getElementById('ifeo-result');
-    launchResult = document.getElementById('launch-result');
     logContainer = document.getElementById('log-container');
     currentTimeEl = document.getElementById('current-time');
 
@@ -324,60 +322,6 @@ function setupEventListeners() {
         }
     });
 
-    // Launch game
-    launchBtn.addEventListener('click', async () => {
-        const dir = gameDir.value.trim();
-        const exe = targetPath.value.trim();
-
-        if (!dir && !exe) {
-            launchResult.textContent = 'Please select game directory or executable';
-            launchResult.className = 'launch-result error';
-            addLog('Launch failed: no target specified', 'error');
-            return;
-        }
-
-        let fullPath;
-        if (dir && exe) {
-            if (exe.includes(':\\') || exe.includes('/')) {
-                fullPath = exe;
-            } else {
-                fullPath = `${dir}\\${exe}`;
-            }
-        } else if (dir) {
-            fullPath = dir;
-        } else {
-            fullPath = exe;
-        }
-
-        fullPath = fullPath.replace(/\//g, '\\');
-
-        const isIFEoActive = ifeoStatus.classList.contains('active');
-        if (!isIFEoActive) {
-            addLog('WARNING: IFEO is not active. Game may not launch with optimizations.', 'error');
-        }
-
-        setLoading(launchBtn, true);
-        addLog(`Launching game: ${fullPath}`, 'info');
-
-        try {
-            const result = await invoke('launch_game', {
-                target: fullPath,
-                args: []
-            });
-
-            launchResult.textContent = result;
-            launchResult.className = 'launch-result success';
-            addLog('Game process started successfully', 'success');
-        } catch (error) {
-            launchResult.textContent = error;
-            launchResult.className = 'launch-result error';
-            addLog(`Game launch failed: ${error}`, 'error');
-            console.error('Game launch error:', error);
-        } finally {
-            setLoading(launchBtn, false);
-        }
-    });
-
     // Browse for executable
     browseBtn.addEventListener('click', async () => {
         try {
@@ -423,6 +367,12 @@ function setupEventListeners() {
                     if (path) {
                         gameDir.value = path;
                         addLog(`Selected game directory: ${path}`, 'info');
+                        // Auto-save directory
+                        try {
+                            await invoke('save_game_dir', { gameDir: path });
+                        } catch (e) {
+                            console.error('Failed to save game dir:', e);
+                        }
                     }
                 }
             }
@@ -431,13 +381,38 @@ function setupEventListeners() {
             console.error('Browse directory error:', error);
         }
     });
+
+    // Auto-save game directory on manual input change
+    gameDir.addEventListener('change', async () => {
+        const dir = gameDir.value.trim();
+        if (dir && isTauri) {
+            try {
+                await invoke('save_game_dir', { gameDir: dir });
+            } catch (e) {
+                console.error('Failed to save game dir:', e);
+            }
+        }
+    });
 }
 
 // Main initialization function
-function initializeApp() {
+async function initializeApp() {
     // Initialize clock
     updateClock();
     setInterval(updateClock, 1000);
+
+    // Load saved game directory
+    if (isTauri) {
+        try {
+            const savedDir = await invoke('load_game_dir');
+            if (savedDir) {
+                gameDir.value = savedDir;
+                addLog(`Loaded saved game directory: ${savedDir}`, 'info');
+            }
+        } catch (e) {
+            console.error('Failed to load game dir:', e);
+        }
+    }
 
     // Initial system info load
     addLog('Application started successfully', 'success');
@@ -452,7 +427,7 @@ function initializeApp() {
         try {
             const result = await invoke('check_status');
             const isActive = !result.includes('Not installed') && !result.includes('not installed');
-            
+
             if (isActive) {
                 ifeoStatus.className = 'status-badge active';
                 ifeoStatus.innerHTML = '<span class="status-dot active"></span> ACTIVE';

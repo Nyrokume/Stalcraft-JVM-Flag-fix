@@ -1,7 +1,9 @@
 use windows_sys::Win32::System::SystemInformation::{GlobalMemoryStatusEx, MEMORYSTATUSEX};
-use windows_sys::Win32::System::Registry::{RegOpenKeyExW, RegQueryValueExW, RegCloseKey, HKEY_LOCAL_MACHINE, KEY_READ};
+use windows_sys::Win32::System::Registry::{RegOpenKeyExW, RegQueryValueExW, RegCloseKey, HKEY_LOCAL_MACHINE, KEY_READ, KEY_WOW64_64KEY};
 use std::ffi::OsStr;
 use std::os::windows::ffi::OsStrExt;
+
+const KEY_READ_64: u32 = KEY_READ | KEY_WOW64_64KEY;
 
 pub struct SystemInfo {
     pub cpu_name: String,
@@ -23,98 +25,99 @@ fn to_wide_string(s: &str) -> Vec<u16> {
     OsStr::new(s).encode_wide().chain(Some(0)).collect()
 }
 
-fn get_cpu_name() -> String {
-    let key_path = to_wide_string(r"HARDWARE\DESCRIPTION\System\CentralProcessor\0");
-    let value_name = to_wide_string("ProcessorNameString");
+fn get_registry_string(key_path: &str, value_name: &str) -> Option<String> {
+    let wide_path = to_wide_string(key_path);
+    let wide_value = to_wide_string(value_name);
 
     let mut hkey = std::ptr::null_mut();
     let result = unsafe {
         RegOpenKeyExW(
             HKEY_LOCAL_MACHINE,
-            key_path.as_ptr(),
+            wide_path.as_ptr(),
             0,
-            KEY_READ,
+            KEY_READ_64,
             &mut hkey,
         )
     };
 
     if result != 0 {
-        return "Unknown CPU".to_string();
+        return None;
     }
 
-    let mut buffer: [u16; 256] = [0; 256];
-    let mut buffer_len = (buffer.len() * 2) as u32;
+    // First, get required buffer size
+    let mut buffer_len: u32 = 0;
     let query_result = unsafe {
         RegQueryValueExW(
             hkey,
-            value_name.as_ptr(),
+            wide_value.as_ptr(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            &mut buffer_len,
+        )
+    };
+
+    if query_result != 0 || buffer_len == 0 {
+        unsafe { RegCloseKey(hkey) };
+        return None;
+    }
+
+    // Allocate buffer and read value
+    let mut buffer: Vec<u16> = vec![0; (buffer_len as usize / 2) + 1];
+    let mut actual_len = buffer_len;
+    let query_result = unsafe {
+        RegQueryValueExW(
+            hkey,
+            wide_value.as_ptr(),
             std::ptr::null_mut(),
             std::ptr::null_mut(),
             buffer.as_mut_ptr() as *mut u8,
-            &mut buffer_len,
+            &mut actual_len,
         )
     };
 
     unsafe { RegCloseKey(hkey) };
 
     if query_result != 0 {
-        return "Unknown CPU".to_string();
+        return None;
     }
 
-    // Convert wide string to Rust string
-    let len = buffer_len as usize / 2;
-    let wide_slice = &buffer[..len];
-    String::from_utf16(wide_slice)
+    // Convert wide string (exclude null terminator)
+    let len = (actual_len as usize / 2).saturating_sub(1);
+    if len == 0 {
+        return None;
+    }
+    
+    String::from_utf16(&buffer[..len])
         .map(|s| s.trim().to_string())
-        .unwrap_or_else(|_| "Unknown CPU".to_string())
+        .ok()
+        .filter(|s| !s.is_empty())
+}
+
+fn get_cpu_name() -> String {
+    get_registry_string(
+        r"HARDWARE\DESCRIPTION\System\CentralProcessor\0",
+        "ProcessorNameString"
+    ).unwrap_or_else(|| "Unknown CPU".to_string())
 }
 
 fn get_gpu_name() -> String {
-    // Try to get GPU name from registry
-    // Check Display adapters
-    let key_path = to_wide_string(r"SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}\0000");
-    let value_name = to_wide_string("DriverDesc");
-
-    let mut hkey = std::ptr::null_mut();
-    let result = unsafe {
-        RegOpenKeyExW(
-            HKEY_LOCAL_MACHINE,
-            key_path.as_ptr(),
-            0,
-            KEY_READ,
-            &mut hkey,
-        )
-    };
-
-    if result == 0 {
-        let mut buffer: [u16; 256] = [0; 256];
-        let mut buffer_len = (buffer.len() * 2) as u32;
-        let query_result = unsafe {
-            RegQueryValueExW(
-                hkey,
-                value_name.as_ptr(),
-                std::ptr::null_mut(),
-                std::ptr::null_mut(),
-                buffer.as_mut_ptr() as *mut u8,
-                &mut buffer_len,
-            )
-        };
-
-        unsafe { RegCloseKey(hkey) };
-
-        if query_result == 0 {
-            let len = buffer_len as usize / 2;
-            let wide_slice = &buffer[..len];
-            if let Ok(gpu_name) = String::from_utf16(wide_slice) {
-                let gpu_name = gpu_name.trim().to_string();
-                if !gpu_name.is_empty() {
-                    return gpu_name;
-                }
-            }
-        }
+    // Try primary GPU adapter
+    if let Some(gpu) = get_registry_string(
+        r"SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}\0000",
+        "DriverDesc"
+    ) {
+        return gpu;
     }
 
-    // Fallback: try WMI or other methods
+    // Try alternate path
+    if let Some(gpu) = get_registry_string(
+        r"SYSTEM\CurrentControlSet\Control\Video",
+        ""
+    ) {
+        return gpu;
+    }
+
     "Unknown GPU".to_string()
 }
 

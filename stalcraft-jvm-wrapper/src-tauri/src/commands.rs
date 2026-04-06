@@ -1,4 +1,5 @@
 use tauri::command;
+use tauri_plugin_store::StoreExt;
 use serde::Serialize;
 use crate::system;
 use crate::jvm;
@@ -55,4 +56,19 @@ pub fn launch_game(target: String, args: Vec<String>) -> Result<String, String> 
     let sys = system::detect_system();
     let flags = jvm::generate_flags(&sys);
     process::launch_game(&target, &args, &flags)
+}
+
+#[command]
+pub fn save_game_dir(app: tauri::AppHandle, game_dir: String) -> Result<(), String> {
+    let store = app.store("settings.json").map_err(|e| e.to_string())?;
+    store.set("game_dir", serde_json::json!(game_dir));
+    store.save().map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[command]
+pub fn load_game_dir(app: tauri::AppHandle) -> Result<Option<String>, String> {
+    let store = app.store("settings.json").map_err(|e| e.to_string())?;
+    let dir = store.get("game_dir").and_then(|v| v.as_str().map(|s| s.to_string()));
+    Ok(dir)
 }
