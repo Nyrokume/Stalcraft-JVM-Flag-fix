@@ -119,10 +119,129 @@
             </div>
         </header>
 
-        <!-- Main Content -->
-        <main class="main-content">
-            <!-- Left Column -->
-            <div class="left-column">
+        <!-- Main Content: dense 3-col top + full-width log -->
+        <main class="main-content main-content--dense">
+            <div class="main-grid-top">
+                <div class="main-col main-col--exec">
+                <!-- Execution Protocol -->
+                <section class="panel execution-protocol">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <svg class="panel-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                            </svg>
+                            EXECUTION PROTOCOL
+                        </div>
+                    </div>
+                    <div class="execution-content">
+                        <div class="path-inputs">
+                            <div class="input-section">
+                                <label class="input-label" for="game-dir">GAME DIRECTORY</label>
+                                <div class="input-container with-button">
+                                    <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                                    </svg>
+                                    <input type="text" id="game-dir" placeholder="C:\Games\STALCRAFT\game" value="">
+                                    <button class="browse-btn" id="browse-dir-btn" title="Select game directory">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="input-section">
+                                <label class="input-label" for="target-path">TARGET EXECUTABLE</label>
+                                <div class="input-container with-button">
+                                    <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <rect x="4" y="4" width="16" height="16" rx="2"/>
+                                        <path d="M9 9h6v6H9z"/>
+                                    </svg>
+                                    <input type="text" id="target-path" placeholder="stalcraft.exe" value="">
+                                    <button class="browse-btn" id="browse-btn" title="Select executable">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <rect x="4" y="4" width="16" height="16" rx="2"/>
+                                            <path d="M9 9h6v6H9z"/>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="launch-guide">
+                            <div class="guide-title">How to Launch</div>
+                            <ol class="guide-steps">
+                                <li>Click <span class="highlight">INSTALL</span> in the IFEO Registry section</li>
+                                <li>Close this wrapper or keep it open for monitoring</li>
+                                <li>Launch the game through <span class="highlight">EXBO Launcher</span> normally</li>
+                                <li>IFEO will automatically intercept and optimize the game</li>
+                            </ol>
+                        </div>
+                        <div class="launch-warning" id="launch-warning">
+                            <p>WARNING: IFEO WRAPPER MUST BE ACTIVE TO LAUNCH OPTIMIZED INSTANCE.</p>
+                            <p>EXENS ALERT! DUE TO THE CHANGED JVM FLAGS, EXENS DOES NOT START CORRECTLY, WHICH CAUSES WARNING NOFTICATIONS.</p>
+                        </div>
+                        <div class="launch-result" id="launch-result"></div>
+                    </div>
+                </section>
+                </div>
+
+                <div class="main-col main-col--config">
+                <!-- Configuration Profiles -->
+                <section class="panel config-profiles">
+                    <div class="panel-header config-panel-header">
+                        <div class="panel-title">
+                            <svg class="panel-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+                            </svg>
+                            CONFIGURATION
+                        </div>
+                    </div>
+                    <div class="panel-divider config-panel-divider"></div>
+                    <div class="config-content">
+                        <div class="config-active-label" id="config-active-label">Loading...</div>
+
+                        <div class="config-subhead">Presets</div>
+                        <p class="config-subhead-hint">Hardware-tuned base; each writes <span class="mono">configs/preset_*.json</span> and activates.</p>
+                        <div class="config-preset-grid" id="config-preset-grid">
+                            <button type="button" class="config-preset-chip" data-preset="balanced" title="Same as auto-generate(), saved as preset_balanced">Balanced</button>
+                            <button type="button" class="config-preset-chip" data-preset="latency" title="Tighter GC pauses, earlier mixed GC">Latency</button>
+                            <button type="button" class="config-preset-chip" data-preset="throughput" title="Softer pause budget, higher IHOP">Throughput</button>
+                            <button type="button" class="config-preset-chip" data-preset="nursery" title="Larger young gen tilt, slightly lower pause target">Nursery</button>
+                            <button type="button" class="config-preset-chip" data-preset="conservative" title="No large pages / pre-touch, gentler JIT">Conservative</button>
+                            <button type="button" class="config-preset-chip" data-preset="low_ram" title="Heap −1 GB vs auto (min 2 GB)">Low RAM</button>
+                            <button type="button" class="config-preset-chip" data-preset="streaming" title="Lower heap, no pre-touch, softer GC for capture/alt-tab">Streaming</button>
+                            <button type="button" class="config-preset-chip" data-preset="power" title="+1 parallel/conc GC threads (capped), +80 MB code cache">Power</button>
+                        </div>
+
+                        <div class="config-subhead">Saved profiles</div>
+                        <div class="config-saved-row">
+                            <select id="config-select" class="config-select" title="JSON files in configs folder">
+                                <option value="">Select profile…</option>
+                            </select>
+                            <button class="action-btn config-row-btn select-config-btn" id="select-config-btn" title="Set registry active profile">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                                Apply
+                            </button>
+                            <button class="action-btn config-row-btn regenerate-config-btn" id="regenerate-config-btn" title="Regenerate default.json from hardware">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                                Regen
+                            </button>
+                        </div>
+
+                        <div class="config-subhead">Profile JSON editor</div>
+                        <p class="config-subhead-hint">Edit the <span class="mono">Config</span> object (Rust field names). Save writes the file; use Apply above to activate.</p>
+                        <div class="config-editor-toolbar">
+                            <button type="button" class="action-btn config-row-btn" id="config-editor-load-active" title="Load currently active profile">Load active</button>
+                            <button type="button" class="action-btn config-row-btn" id="config-editor-load-selected" title="Load profile chosen in the list">Load selected</button>
+                            <button type="button" class="action-btn config-row-btn" id="config-editor-save" title="Overwrite JSON for the selected profile name">Save to selected</button>
+                        </div>
+                        <div id="config-editor-error" class="config-editor-error" role="status"></div>
+                        <textarea id="config-json-editor" class="config-json-editor" spellcheck="false" placeholder='Load a profile or paste JSON (fields: heap_size_gb, max_gc_pause_millis, …)'></textarea>
+                    </div>
+                </section>
+                </div>
+
+                <div class="main-col main-col--stack">
                 <!-- Hardware Profile -->
                 <section class="panel hardware-profile">
                     <div class="panel-header">
@@ -212,8 +331,8 @@
                     </div>
                     <div class="panel-divider"></div>
                     <div class="ifeo-content">
-                        <p class="ifeo-description">
-                            Image File Execution Options (IFEO) allows the wrapper to intercept the game launch and apply optimized JVM parameters automatically.
+                        <p class="ifeo-description" title="Image File Execution Options (IFEO) lets Windows launch this wrapper instead of the game executable, so optimized JVM flags are applied automatically.">
+                            IFEO intercepts <span class="mono">stalcraft.exe</span> / <span class="mono">stalcraftw.exe</span> and applies this wrapper’s JVM profile.
                         </p>
                         <div class="ifeo-buttons">
                             <button class="action-btn install-btn" id="install-btn">
@@ -242,71 +361,9 @@
                     </div>
                 </section>
             </div>
+            </div>
 
-            <!-- Right Column -->
-            <div class="right-column">
-                <!-- Execution Protocol -->
-                <section class="panel execution-protocol">
-                    <div class="panel-header">
-                        <div class="panel-title">
-                            <svg class="panel-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
-                            </svg>
-                            EXECUTION PROTOCOL
-                        </div>
-                    </div>
-                    <div class="execution-content">
-                        <div class="path-inputs">
-                            <div class="input-section">
-                                <label class="input-label" for="game-dir">GAME DIRECTORY</label>
-                                <div class="input-container with-button">
-                                    <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
-                                    </svg>
-                                    <input type="text" id="game-dir" placeholder="C:\Games\STALCRAFT\game" value="">
-                                    <button class="browse-btn" id="browse-dir-btn" title="Select game directory">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
-                                        </svg>
-                                    </button>
-                                </div>
-                            </div>
-                            
-                            <div class="input-section">
-                                <label class="input-label" for="target-path">TARGET EXECUTABLE</label>
-                                <div class="input-container with-button">
-                                    <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <rect x="4" y="4" width="16" height="16" rx="2"/>
-                                        <path d="M9 9h6v6H9z"/>
-                                    </svg>
-                                    <input type="text" id="target-path" placeholder="stalcraft.exe" value="">
-                                    <button class="browse-btn" id="browse-btn" title="Select executable">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <rect x="4" y="4" width="16" height="16" rx="2"/>
-                                            <path d="M9 9h6v6H9z"/>
-                                        </svg>
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="launch-guide">
-                            <div class="guide-title">How to Launch</div>
-                            <ol class="guide-steps">
-                                <li>Click <span class="highlight">INSTALL</span> in the IFEO Registry section</li>
-                                <li>Close this wrapper or keep it open for monitoring</li>
-                                <li>Launch the game through <span class="highlight">EXBO Launcher</span> normally</li>
-                                <li>IFEO will automatically intercept and optimize the game</li>
-                            </ol>
-                        </div>
-                        <div class="launch-warning" id="launch-warning">
-                            <p>WARNING: IFEO WRAPPER MUST BE ACTIVE TO LAUNCH OPTIMIZED INSTANCE.</p>
-                            <p>EXENS ALERT! DUE TO THE CHANGED JVM FLAGS, EXENS DOES NOT START CORRECTLY, WHICH CAUSES WARNING NOFTICATIONS.</p>
-                        </div>
-                        <div class="launch-result" id="launch-result"></div>
-                    </div>
-                </section>
-
-                <!-- System Output Log -->
+            <div class="main-grid-log">
                 <section class="panel system-log">
                     <div class="panel-header">
                         <div class="panel-title">

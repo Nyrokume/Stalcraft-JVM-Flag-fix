@@ -247,10 +247,10 @@ body {
 }
 
 .app-wrapper {
-    max-width: 1500px;
+    max-width: 1600px;
     margin: 0 auto;
-    padding: 20px 32px;
-    padding-top: calc(var(--titlebar-height) + 20px);
+    padding: 12px 18px;
+    padding-top: calc(var(--titlebar-height) + 12px);
     display: flex;
     flex-direction: column;
     min-height: 100vh;
@@ -263,8 +263,8 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 20px 0;
-    margin-bottom: 28px;
+    padding: 10px 0;
+    margin-bottom: 12px;
     border-bottom: 1px solid var(--border-primary);
     gap: 16px;
     flex-wrap: wrap;
@@ -345,21 +345,103 @@ body {
     color: var(--text-secondary);
 }
 
-/* ========== MAIN CONTENT ========== */
+/* ========== MAIN CONTENT (dense: 3-col + log) ========== */
 .main-content {
-    display: grid;
-    grid-template-columns: 480px 1fr;
-    gap: 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
     flex: 1;
     min-width: 0;
 }
 
-.left-column,
-.right-column {
+.main-content--dense {
+    gap: 12px;
+}
+
+.main-grid-top {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    align-items: start;
+    min-width: 0;
+}
+
+.main-col--exec,
+.main-col--config {
+    min-width: 0;
+}
+
+.main-col--stack {
     display: flex;
     flex-direction: column;
-    gap: 28px;
+    gap: 12px;
     min-width: 0;
+}
+
+.main-grid-log {
+    min-width: 0;
+}
+
+.main-grid-top .panel-header {
+    padding: 10px 14px;
+}
+
+.main-grid-top .panel-divider {
+    margin: 0 14px;
+}
+
+.main-grid-top .hardware-list {
+    padding: 10px 14px;
+}
+
+.main-grid-top .hardware-item {
+    padding: 8px 0;
+}
+
+.main-grid-top .ifeo-content {
+    padding: 10px 14px;
+}
+
+.main-grid-top .ifeo-description {
+    font-size: 12px;
+    line-height: 1.45;
+    margin-bottom: 10px;
+}
+
+.main-grid-top .execution-content {
+    padding: 12px 14px;
+}
+
+.main-grid-top .input-container {
+    margin-bottom: 10px;
+}
+
+.main-grid-top .launch-guide {
+    margin-top: 8px;
+}
+
+.main-grid-top .guide-steps {
+    font-size: 12px;
+    line-height: 1.45;
+}
+
+.main-grid-top .config-json-editor {
+    min-height: 140px;
+    max-height: min(200px, 28vh);
+}
+
+.main-grid-log .system-log {
+    flex: none;
+    min-height: 0;
+}
+
+.main-grid-log .log-container {
+    max-height: min(240px, 32vh);
+    padding: 10px 16px;
+}
+
+.mono {
+    font-family: var(--font-mono);
 }
 
 /* ========== PANELS ========== */
@@ -682,6 +764,188 @@ body {
 
 .ifeo-result.info {
     color: var(--text-secondary);
+}
+
+/* ========== CONFIGURATION PROFILES (compact) ========== */
+.config-profiles .config-panel-header {
+    padding: 12px 16px;
+}
+
+.config-profiles .config-panel-divider {
+    margin: 0 16px;
+}
+
+.config-profiles .panel-title {
+    font-size: 12px;
+    gap: 8px;
+}
+
+.config-profiles .panel-icon {
+    width: 18px;
+    height: 18px;
+}
+
+.config-content {
+    padding: 12px 16px 14px;
+}
+
+.config-active-label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    line-height: 1.45;
+    color: var(--text-secondary);
+    margin-bottom: 10px;
+    min-height: 2.6em;
+}
+
+.config-active-label.success {
+    color: var(--accent-green);
+}
+
+.config-active-label.warning {
+    color: var(--accent-orange);
+}
+
+.config-subhead {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-top: 8px;
+    margin-bottom: 4px;
+}
+
+.config-subhead:first-of-type {
+    margin-top: 0;
+}
+
+.config-subhead-hint {
+    font-size: 11px;
+    color: var(--text-muted);
+    line-height: 1.4;
+    margin-bottom: 8px;
+}
+
+.config-subhead-hint .mono {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-secondary);
+}
+
+.config-preset-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(108px, 1fr));
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+.config-preset-chip {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    padding: 8px 10px;
+    border-radius: 4px;
+    border: 1px solid var(--border-secondary);
+    background: var(--bg-input);
+    color: var(--text-secondary);
+    cursor: pointer;
+    text-align: center;
+    transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+
+.config-preset-chip:hover {
+    border-color: var(--border-accent);
+    color: var(--text-primary);
+    background: var(--bg-button-hover);
+}
+
+.config-preset-chip.active {
+    border-color: rgba(245, 158, 11, 0.45);
+    color: var(--accent-orange);
+    background: rgba(245, 158, 11, 0.08);
+}
+
+.config-preset-chip:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.config-saved-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: stretch;
+    gap: 6px;
+}
+
+.config-profiles .config-select {
+    flex: 1 1 140px;
+    min-width: 0;
+    padding: 8px 10px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    background: var(--bg-input);
+    border: 1px solid var(--border-secondary);
+    border-radius: 4px;
+    color: var(--text-primary);
+    cursor: pointer;
+    outline: none;
+}
+
+.config-profiles .config-select:focus {
+    border-color: var(--accent-orange-dim);
+}
+
+.config-profiles .config-row-btn {
+    flex: 0 0 auto;
+    padding: 8px 12px;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+    gap: 6px;
+    min-height: 0;
+}
+
+.config-profiles .config-row-btn svg {
+    width: 14px;
+    height: 14px;
+}
+
+.config-editor-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 6px;
+}
+
+.config-editor-error {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--accent-red);
+    min-height: 1.2em;
+    margin-bottom: 6px;
+}
+
+.config-json-editor {
+    width: 100%;
+    min-height: 200px;
+    max-height: 42vh;
+    resize: vertical;
+    box-sizing: border-box;
+    padding: 10px 12px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    line-height: 1.45;
+    color: var(--text-primary);
+    background: var(--bg-input);
+    border: 1px solid var(--border-secondary);
+    border-radius: 4px;
+    outline: none;
+}
+
+.config-json-editor:focus {
+    border-color: var(--accent-orange-dim);
 }
 
 /* ========== EXECUTION PROTOCOL ========== */
@@ -1092,8 +1356,8 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 20px 0;
-    margin-top: 28px;
+    padding: 12px 0;
+    margin-top: 12px;
     border-top: 1px solid var(--border-primary);
 }
 
@@ -1125,12 +1389,24 @@ body {
 /* Large tablets / small desktops */
 @media (max-width: 1200px) {
     .app-wrapper {
-        padding: 20px 24px;
+        padding: 12px 16px;
     }
 
-    .main-content {
+    .main-grid-top {
         grid-template-columns: 1fr;
-        gap: 24px;
+        gap: 12px;
+    }
+
+    .main-col--config {
+        order: 1;
+    }
+
+    .main-col--exec {
+        order: 2;
+    }
+
+    .main-col--stack {
+        order: 3;
     }
 
     .title-block h1 {
@@ -1141,15 +1417,15 @@ body {
 /* Tablets */
 @media (max-width: 900px) {
     .app-wrapper {
-        padding: 16px 20px;
+        padding: 12px 14px;
     }
 
     .app-header {
         flex-direction: column;
-        gap: 16px;
+        gap: 12px;
         align-items: flex-start;
-        padding: 16px 0;
-        margin-bottom: 24px;
+        padding: 10px 0;
+        margin-bottom: 12px;
     }
 
     .header-right {
@@ -1261,6 +1537,19 @@ body {
 
     .hw-main.accent {
         font-size: 16px;
+    }
+
+    .config-preset-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .config-saved-row {
+        flex-direction: column;
+    }
+
+    .config-profiles .config-row-btn {
+        flex: 1 1 auto;
+        justify-content: center;
     }
 
     .execution-content {

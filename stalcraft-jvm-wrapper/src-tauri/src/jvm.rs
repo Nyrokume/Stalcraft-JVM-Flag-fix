@@ -1,157 +1,317 @@
-use crate::system::SystemInfo;
+// jvm.rs — полный порт flags.go + filter.go
+// Превращает Config в JVM флаги и фильтрует конфликтующие аргументы лаунчера.
 
-pub fn generate_flags(sys: &SystemInfo) -> Vec<String> {
-    let heap = calc_heap(sys);
-    let (parallel, conc) = calc_gc_threads(sys);
-    let region = calc_region_size(heap);
-    let meta = calc_metaspace(heap);
-    let cc = calc_code_cache(heap);
-    let (surv, tenure) = calc_survivor(sys);
-    let soft_ref = calc_soft_ref(heap);
+use crate::config::Config;
 
-    let mut flags = vec![
-        format!("-Xmx{}g", heap),
-        format!("-Xms{}g", heap),
-        "-XX:+AlwaysPreTouch".to_string(),
-        format!("-XX:MetaspaceSize={}m", meta),
-        format!("-XX:MaxMetaspaceSize={}m", meta),
+// ─── flags() — точный порт Flags() из flags.go ───────────────────────────────
+
+pub fn flags(cfg: &Config) -> Vec<String> {
+    let cc = if cfg.reserved_code_cache_size_mb == 0 {
+        256
+    } else {
+        cfg.reserved_code_cache_size_mb
+    };
+
+    // Xms = min(heap, 4) — STALCRAFT peak working set ~4 GB
+    let xms = cfg.heap_size_gb.min(4);
+
+    let mut f: Vec<String> = vec![
+        format!("-Xmx{}g", cfg.heap_size_gb),
+        format!("-Xms{}g", xms),
+        format!("-XX:MetaspaceSize={}m", cfg.metaspace_mb),
+        format!("-XX:MaxMetaspaceSize={}m", cfg.metaspace_mb),
         "-XX:+UseG1GC".to_string(),
         "-XX:+UnlockExperimentalVMOptions".to_string(),
-        "-XX:MaxGCPauseMillis=50".to_string(),
-        format!("-XX:G1HeapRegionSize={}m", region),
-        "-XX:G1NewSizePercent=30".to_string(),
-        "-XX:G1MaxNewSizePercent=40".to_string(),
-        "-XX:G1ReservePercent=15".to_string(),
-        "-XX:G1HeapWastePercent=5".to_string(),
-        "-XX:G1MixedGCCountTarget=4".to_string(),
+        format!("-XX:MaxGCPauseMillis={}", cfg.max_gc_pause_millis),
+        format!("-XX:G1HeapRegionSize={}m", cfg.g1_heap_region_size_mb),
+        format!("-XX:G1NewSizePercent={}", cfg.g1_new_size_percent),
+        format!("-XX:G1MaxNewSizePercent={}", cfg.g1_max_new_size_percent),
+        format!("-XX:G1ReservePercent={}", cfg.g1_reserve_percent),
+        format!("-XX:G1HeapWastePercent={}", cfg.g1_heap_waste_percent),
+        format!("-XX:G1MixedGCCountTarget={}", cfg.g1_mixed_gc_count_target),
         "-XX:+G1UseAdaptiveIHOP".to_string(),
-        "-XX:InitiatingHeapOccupancyPercent=35".to_string(),
-        "-XX:G1MixedGCLiveThresholdPercent=90".to_string(),
-        "-XX:G1RSetUpdatingPauseTimePercent=5".to_string(),
-        format!("-XX:SurvivorRatio={}", surv),
-        format!("-XX:MaxTenuringThreshold={}", tenure),
-        format!("-XX:ParallelGCThreads={}", parallel),
-        format!("-XX:ConcGCThreads={}", conc),
+        format!(
+            "-XX:InitiatingHeapOccupancyPercent={}",
+            cfg.initiating_heap_occupancy_percent
+        ),
+        format!(
+            "-XX:G1MixedGCLiveThresholdPercent={}",
+            cfg.g1_mixed_gc_live_threshold_percent
+        ),
+        format!(
+            "-XX:G1RSetUpdatingPauseTimePercent={}",
+            cfg.g1_rset_updating_pause_time_percent
+        ),
+        format!("-XX:SurvivorRatio={}", cfg.survivor_ratio),
+        format!("-XX:MaxTenuringThreshold={}", cfg.max_tenuring_threshold),
+        format!("-XX:ParallelGCThreads={}", cfg.parallel_gc_threads),
+        format!("-XX:ConcGCThreads={}", cfg.conc_gc_threads),
         "-XX:+ParallelRefProcEnabled".to_string(),
         "-XX:+DisableExplicitGC".to_string(),
-        format!("-XX:SoftRefLRUPolicyMSPerMB={}", soft_ref),
-        "-XX:+UseCompressedOops".to_string(),
+        format!(
+            "-XX:SoftRefLRUPolicyMSPerMB={}",
+            cfg.soft_ref_lru_policy_ms_per_mb
+        ),
+        "-XX:-UseBiasedLocking".to_string(),
+        "-XX:+DisableAttachMechanism".to_string(),
         format!("-XX:ReservedCodeCacheSize={}m", cc),
-        format!("-XX:NonNMethodCodeHeapSize={}m", calc_non_method(cc)),
-        format!("-XX:ProfiledCodeHeapSize={}m", calc_profiled(cc)),
-        format!("-XX:NonProfiledCodeHeapSize={}m", calc_non_profiled(cc)),
-        "-XX:MaxInlineLevel=15".to_string(),
-        "-XX:FreqInlineSize=500".to_string(),
-        "-XX:+PerfDisableSharedMem".to_string(),
+        format!("-XX:NonNMethodCodeHeapSize={}m", cc * 5 / 100),
+        format!("-XX:ProfiledCodeHeapSize={}m", cc * 48 / 100),
+        format!(
+            "-XX:NonProfiledCodeHeapSize={}m",
+            cc - cc * 5 / 100 - cc * 48 / 100
+        ),
+        format!("-XX:MaxInlineLevel={}", cfg.max_inline_level),
+        format!("-XX:FreqInlineSize={}", cfg.freq_inline_size),
         "-Djdk.nio.maxCachedBufferSize=131072".to_string(),
     ];
 
-    if sys.large_pages {
-        flags.push("-XX:+UseLargePages".to_string());
-        flags.push(format!(
-            "-XX:LargePageSizeInBytes={}m",
-            sys.large_page_size / (1024 * 1024)
+    if cfg.pre_touch {
+        f.push("-XX:+AlwaysPreTouch".to_string());
+    }
+    if cfg.g1_satb_buffer_enqueuing_threshold_percent > 0 {
+        f.push(format!(
+            "-XX:G1SATBBufferEnqueueingThresholdPercent={}",
+            cfg.g1_satb_buffer_enqueuing_threshold_percent
+        ));
+    }
+    if cfg.g1_conc_rs_hot_card_limit > 0 {
+        f.push(format!(
+            "-XX:G1ConcRSHotCardLimit={}",
+            cfg.g1_conc_rs_hot_card_limit
+        ));
+    }
+    if cfg.g1_conc_refinement_service_interval_millis > 0 {
+        f.push(format!(
+            "-XX:G1ConcRefinementServiceIntervalMillis={}",
+            cfg.g1_conc_refinement_service_interval_millis
+        ));
+    }
+    if cfg.gc_time_ratio > 0 {
+        f.push(format!("-XX:GCTimeRatio={}", cfg.gc_time_ratio));
+    }
+    if cfg.use_dynamic_number_of_gc_threads {
+        f.push("-XX:+UseDynamicNumberOfGCThreads".to_string());
+    }
+    if cfg.use_string_deduplication {
+        f.push("-XX:+UseStringDeduplication".to_string());
+    }
+    if cfg.inline_small_code > 0 {
+        f.push(format!("-XX:InlineSmallCode={}", cfg.inline_small_code));
+    }
+    if cfg.max_node_limit > 0 && cfg.node_limit_fudge_factor > 0 {
+        f.push(format!(
+            "-XX:NodeLimitFudgeFactor={}",
+            cfg.node_limit_fudge_factor
+        ));
+        f.push(format!("-XX:MaxNodeLimit={}", cfg.max_node_limit));
+    }
+    if cfg.nmethod_sweep_activity > 0 {
+        f.push(format!(
+            "-XX:NmethodSweepActivity={}",
+            cfg.nmethod_sweep_activity
+        ));
+    }
+    if !cfg.dont_compile_huge_methods {
+        f.push("-XX:-DontCompileHugeMethods".to_string());
+    }
+    if cfg.allocate_prefetch_style > 0 {
+        f.push(format!(
+            "-XX:AllocatePrefetchStyle={}",
+            cfg.allocate_prefetch_style
+        ));
+    }
+    if cfg.always_act_as_server_class {
+        f.push("-XX:+AlwaysActAsServerClassMachine".to_string());
+    }
+    if cfg.use_xmm_for_array_copy {
+        f.push("-XX:+UseXMMForArrayCopy".to_string());
+    }
+    if cfg.use_fpu_for_spilling {
+        f.push("-XX:+UseFPUForSpilling".to_string());
+    }
+    if cfg.use_large_pages {
+        f.push("-XX:+UseLargePages".to_string());
+        if cfg.large_page_size_mb > 0 {
+            f.push(format!(
+                "-XX:LargePageSizeInBytes={}m",
+                cfg.large_page_size_mb
+            ));
+        }
+    }
+
+    // reflection fast path — emit для любого значения (включая 0 и отрицательные)
+    f.push(format!(
+        "-Dsun.reflect.inflationThreshold={}",
+        cfg.reflection_inflation_threshold
+    ));
+
+    if cfg.auto_box_cache_max > 0 {
+        f.push(format!("-XX:AutoBoxCacheMax={}", cfg.auto_box_cache_max));
+    }
+    if cfg.use_thread_priorities {
+        f.push("-XX:+UseThreadPriorities".to_string());
+        if cfg.thread_priority_policy > 0 {
+            f.push(format!(
+                "-XX:ThreadPriorityPolicy={}",
+                cfg.thread_priority_policy
+            ));
+        }
+    }
+    if !cfg.use_counter_decay {
+        f.push("-XX:-UseCounterDecay".to_string());
+    }
+    if cfg.compile_threshold_scaling > 0.0 && (cfg.compile_threshold_scaling - 1.0).abs() > 1e-9 {
+        f.push(format!(
+            "-XX:CompileThresholdScaling={}",
+            cfg.compile_threshold_scaling
         ));
     }
 
-    flags
+    f
 }
 
-pub fn calc_heap(sys: &SystemInfo) -> u64 {
-    let free = sys.bytes_to_gb(sys.free_ram);
-    let total = sys.bytes_to_gb(sys.total_ram);
+// ─── FilterArgs — точный порт FilterArgs() из filter.go ──────────────────────
 
-    if total <= 8 {
-        return 0;
-    }
+/// Полный набор exact-совпадений для удаления (из filter.go)
+static EXACT_REMOVE: &[&str] = &[
+    "-XX:-PrintCommandLineFlags",
+    "-XX:+UseG1GC",
+    "-XX:+UseCompressedOops",
+    "-XX:+PerfDisableSharedMem",
+    "-XX:+UseBiasedLocking",
+    "-XX:-UseBiasedLocking",
+    "-XX:+UseStringDeduplication",
+    "-XX:+UseNUMA",
+    "-XX:+DisableAttachMechanism",
+    "-XX:+UseDynamicNumberOfGCThreads",
+    "-XX:+AlwaysActAsServerClassMachine",
+    "-XX:+UseXMMForArrayCopy",
+    "-XX:+UseFPUForSpilling",
+    "-XX:-DontCompileHugeMethods",
+    "-XX:+DontCompileHugeMethods",
+    "-XX:+AlwaysPreTouch",
+    "-XX:-AlwaysPreTouch",
+    "-XX:+ParallelRefProcEnabled",
+    "-XX:+DisableExplicitGC",
+    "-XX:+G1UseAdaptiveIHOP",
+    "-XX:+UnlockExperimentalVMOptions",
+    "-XX:+UseThreadPriorities",
+    "-XX:-UseThreadPriorities",
+    "-XX:+UseCounterDecay",
+    "-XX:-UseCounterDecay",
+    "-XX:+UseLargePages",
+    "-XX:-UseLargePages",
+    "-XX:+UseCompressedClassPointerCompression",
+];
 
-    let mut heap = free / 2;
+/// Полный набор prefix-совпадений для удаления (из filter.go)
+static PREFIX_REMOVE: &[&str] = &[
+    "-XX:MaxGCPauseMillis=",
+    "-XX:MetaspaceSize=",
+    "-XX:MaxMetaspaceSize=",
+    "-XX:G1HeapRegionSize=",
+    "-XX:G1NewSizePercent=",
+    "-XX:G1MaxNewSizePercent=",
+    "-XX:G1ReservePercent=",
+    "-XX:G1HeapWastePercent=",
+    "-XX:G1MixedGCCountTarget=",
+    "-XX:InitiatingHeapOccupancyPercent=",
+    "-XX:G1MixedGCLiveThresholdPercent=",
+    "-XX:G1RSetUpdatingPauseTimePercent=",
+    "-XX:G1SATBBufferEnqueueingThresholdPercent=",
+    "-XX:G1ConcRSHotCardLimit=",
+    "-XX:G1ConcRefinementServiceIntervalMillis=",
+    "-XX:GCTimeRatio=",
+    "-XX:SurvivorRatio=",
+    "-XX:MaxTenuringThreshold=",
+    "-XX:ParallelGCThreads=",
+    "-XX:ConcGCThreads=",
+    "-XX:SoftRefLRUPolicyMSPerMB=",
+    "-XX:ReservedCodeCacheSize=",
+    "-XX:NonNMethodCodeHeapSize=",
+    "-XX:ProfiledCodeHeapSize=",
+    "-XX:NonProfiledCodeHeapSize=",
+    "-XX:MaxInlineLevel=",
+    "-XX:FreqInlineSize=",
+    "-XX:InlineSmallCode=",
+    "-XX:MaxNodeLimit=",
+    "-XX:NodeLimitFudgeFactor=",
+    "-XX:NmethodSweepActivity=",
+    "-XX:AllocatePrefetchStyle=",
+    "-XX:LargePageSizeInBytes=",
+    "-XX:AutoBoxCacheMax=",
+    "-XX:ThreadPriorityPolicy=",
+    "-XX:CompileThresholdScaling=",
+    "-XX:InitialHeapSize=",
+    "-XX:MaxHeapSize=",
+    "-XX:MinHeapDeltaBytes=",
+    "-XX:SoftRefLRUPolicyMSPerMB=",
+    "-XX:TieredCompilation=",
+    "-XX:CICompilerCount=",
+    "-XX:AutoBoxCacheMax=",
+    "-Dsun.reflect.inflationThreshold=",
+    "-Dsun.nio.maxCachedBufferSize=",
+    "-Xms",
+    "-Xmx",
+    "-Xbootclasspath",
+    "-Xbootclasspath/a",
+    "-Xbootclasspath/p",
+];
 
-    let mut floor = total / 4;
-    if floor < 6 {
-        floor = 6;
+fn should_remove(arg: &str) -> bool {
+    if EXACT_REMOVE.contains(&arg) {
+        return true;
     }
-    let mut cap = total * 3 / 4;
-    if cap > 16 {
-        cap = 16;
-    }
-
-    if heap < floor {
-        heap = floor;
-    }
-    if heap > cap {
-        heap = cap;
-    }
-    if heap < 6 {
-        heap = 6;
-    }
-    heap
+    PREFIX_REMOVE.iter().any(|p| arg.starts_with(p))
 }
 
-fn calc_gc_threads(sys: &SystemInfo) -> (u64, u64) {
-    let mut parallel = sys.cpu_cores as u64 - 2;
-    if parallel < 2 {
-        parallel = 2;
+/// splitArgs() — разбивает аргументы на JVM флаги, main class, app args
+fn split_args(args: &[String]) -> (Vec<String>, String, Vec<String>) {
+    let mut jvm = Vec::new();
+    let mut main_class = String::new();
+    let mut app = Vec::new();
+
+    let mut i = 0;
+    while i < args.len() {
+        let a = &args[i];
+        if a == "-classpath" || a == "-cp" || a == "-jar" {
+            jvm.push(a.clone());
+            i += 1;
+            if i < args.len() {
+                jvm.push(args[i].clone());
+            }
+            i += 1;
+            continue;
+        }
+        if a.starts_with('-') {
+            jvm.push(a.clone());
+            i += 1;
+            continue;
+        }
+        // Это main class
+        main_class = a.clone();
+        if i + 1 < args.len() {
+            app = args[i + 1..].to_vec();
+        }
+        return (jvm, main_class, app);
     }
-    let mut concurrent = parallel / 4;
-    if concurrent < 1 {
-        concurrent = 1;
-    }
-    (parallel, concurrent)
+    (jvm, main_class, app)
 }
 
-fn calc_region_size(heap_gb: u64) -> u64 {
-    match heap_gb {
-        0..=4 => 4,
-        5..=8 => 8,
-        9..=16 => 16,
-        _ => 32,
+/// FilterArgs — точный порт FilterArgs() из filter.go
+/// Убирает конфликтующие флаги лаунчера, вставляет наши оптимизированные.
+pub fn filter_args(orig: &[String], injected: &[String]) -> Vec<String> {
+    let (jvm_args, main_class, app) = split_args(orig);
+
+    let filtered: Vec<String> = jvm_args.into_iter().filter(|a| !should_remove(a)).collect();
+
+    let mut result = Vec::with_capacity(filtered.len() + injected.len() + 1 + app.len());
+    result.extend(filtered);
+    result.extend_from_slice(injected);
+    if !main_class.is_empty() {
+        result.push(main_class);
     }
-}
-
-fn calc_metaspace(heap_gb: u64) -> u64 {
-    match heap_gb {
-        0..=4 => 128,
-        5..=8 => 256,
-        _ => 512,
-    }
-}
-
-fn calc_code_cache(heap_gb: u64) -> u64 {
-    let mut cc = heap_gb * 1024 / 16;
-    if cc < 128 {
-        cc = 128;
-    }
-    if cc > 512 {
-        cc = 512;
-    }
-    cc
-}
-
-fn calc_non_method(cc: u64) -> u64 {
-    cc * 5 / 100
-}
-
-fn calc_profiled(cc: u64) -> u64 {
-    cc * 38 / 100
-}
-
-fn calc_non_profiled(cc: u64) -> u64 {
-    cc - calc_non_method(cc) - calc_profiled(cc)
-}
-
-fn calc_survivor(sys: &SystemInfo) -> (u64, u64) {
-    if sys.cpu_cores <= 4 {
-        (32, 1)
-    } else {
-        (8, 4)
-    }
-}
-
-fn calc_soft_ref(heap_gb: u64) -> u64 {
-    match heap_gb {
-        0..=4 => 10,
-        5..=8 => 25,
-        _ => 50,
-    }
+    result.extend(app);
+    result
 }
