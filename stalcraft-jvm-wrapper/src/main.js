@@ -1,22 +1,18 @@
-// Global variables
+// main.js — полный функционал включая управление конфигами
 let invoke;
 let isTauri = false;
 let currentWindow;
 
-// Element references - will be initialized after DOM loads
 let refreshBtn, installBtn, uninstallBtn, verifyBtn;
 let browseBtn, browseDirBtn, gameDir, targetPath, ifeoResult;
 let logContainer, currentTimeEl;
 let cpuInfo, gpuInfo, ramFill, ramTotal, ramAvailable, heapSize, ifeoStatus;
-
-// Title bar button references
 let btnMinimize, btnMaximize, btnClose;
 let btnMinimizeLoading, btnMaximizeLoading, btnCloseLoading;
-
-// Loading screen elements
 let loadingScreen, loadingProgress, loadingStatus;
+// config UI
+let configSelect, configActiveLabel, regenerateConfigBtn, selectConfigBtn;
 
-// Initialize Tauri API
 async function initTauriAPI() {
     try {
         const tauriCore = await import('@tauri-apps/api/core');
@@ -24,17 +20,15 @@ async function initTauriAPI() {
         invoke = tauriCore.invoke;
         currentWindow = tauriWindow.getCurrentWindow();
         isTauri = true;
-        console.log('Tauri API loaded successfully');
     } catch (e) {
         console.error('Tauri API not available:', e);
-        invoke = async (cmd, args) => {
+        invoke = async (cmd) => {
             throw new Error(`Tauri command '${cmd}' not available in browser mode`);
         };
         currentWindow = null;
     }
 }
 
-// Initialize element references
 function initElements() {
     refreshBtn = document.getElementById('refresh-btn');
     installBtn = document.getElementById('install-btn');
@@ -47,7 +41,6 @@ function initElements() {
     ifeoResult = document.getElementById('ifeo-result');
     logContainer = document.getElementById('log-container');
     currentTimeEl = document.getElementById('current-time');
-
     cpuInfo = document.getElementById('cpu-info');
     gpuInfo = document.getElementById('gpu-info');
     ramFill = document.getElementById('ram-fill');
@@ -55,125 +48,78 @@ function initElements() {
     ramAvailable = document.getElementById('ram-available');
     heapSize = document.getElementById('heap-size');
     ifeoStatus = document.getElementById('ifeo-status');
-
     btnMinimize = document.getElementById('btn-minimize');
     btnMaximize = document.getElementById('btn-maximize');
     btnClose = document.getElementById('btn-close');
-
     btnMinimizeLoading = document.getElementById('btn-minimize-loading');
     btnMaximizeLoading = document.getElementById('btn-maximize-loading');
     btnCloseLoading = document.getElementById('btn-close-loading');
-
     loadingScreen = document.getElementById('loading-screen');
     loadingProgress = document.getElementById('loading-progress');
     loadingStatus = document.getElementById('loading-status');
+    configSelect = document.getElementById('config-select');
+    configActiveLabel = document.getElementById('config-active-label');
+    regenerateConfigBtn = document.getElementById('regenerate-config-btn');
+    selectConfigBtn = document.getElementById('select-config-btn');
 }
 
-// Helper function to setup window control buttons
 function setupWindowControls(minimizeBtn, maximizeBtn, closeBtn) {
-    if (minimizeBtn) {
-        minimizeBtn.addEventListener('click', async () => {
-            if (currentWindow) {
-                await currentWindow.minimize();
-            }
-        });
-    }
-
-    if (maximizeBtn) {
-        maximizeBtn.addEventListener('click', async () => {
-            if (currentWindow) {
-                const isMaximized = await currentWindow.isMaximized();
-                if (isMaximized) {
-                    await currentWindow.unmaximize();
-                } else {
-                    await currentWindow.maximize();
-                }
-            }
-        });
-    }
-
-    if (closeBtn) {
-        closeBtn.addEventListener('click', async () => {
-            if (currentWindow) {
-                await currentWindow.close();
-            }
-        });
-    }
+    if (minimizeBtn) minimizeBtn.addEventListener('click', () => currentWindow?.minimize());
+    if (maximizeBtn) maximizeBtn.addEventListener('click', async () => {
+        if (currentWindow) {
+            (await currentWindow.isMaximized()) ? currentWindow.unmaximize() : currentWindow.maximize();
+        }
+    });
+    if (closeBtn) closeBtn.addEventListener('click', () => currentWindow?.close());
 }
 
-// Loading Screen Animation
 const loadingMessages = [
-    'Detecting hardware...',
-    'Analyzing CPU configuration...',
-    'Scanning memory modules...',
-    'Detecting graphics adapter...',
-    'Calculating optimal JVM parameters...',
-    'Initializing system...',
-    'Preparing interface...',
-    'Almost ready...'
+    'Detecting hardware...', 'Analyzing CPU configuration...', 'Scanning memory modules...',
+    'Detecting L3 cache size...', 'Calculating optimal JVM parameters...',
+    'Loading config profiles...', 'Preparing interface...', 'Almost ready...'
 ];
 
 function animateLoadingScreen() {
     return new Promise((resolve) => {
-        const totalDuration = 5000; // 5 seconds
+        const totalDuration = 5000;
         const messageInterval = totalDuration / loadingMessages.length;
-        const progressStep = 100 / (totalDuration / 50); // Update every 50ms
-        
-        let progress = 0;
-        let messageIndex = 0;
-        
-        // Update status messages
+        const progressStep = 100 / (totalDuration / 50);
+        let progress = 0, messageIndex = 0;
+
         const messageTimer = setInterval(() => {
             if (messageIndex < loadingMessages.length) {
-                loadingStatus.textContent = loadingMessages[messageIndex];
-                messageIndex++;
+                loadingStatus.textContent = loadingMessages[messageIndex++];
             }
         }, messageInterval);
-        
-        // Update progress bar
+
         const progressTimer = setInterval(() => {
             progress += progressStep;
             if (progress >= 100) {
                 progress = 100;
                 clearInterval(progressTimer);
                 clearInterval(messageTimer);
-                
-                // Hide loading screen
-                setTimeout(() => {
-                    loadingScreen.classList.add('hidden');
-                    resolve();
-                }, 200);
+                setTimeout(() => { loadingScreen.classList.add('hidden'); resolve(); }, 200);
             }
             loadingProgress.style.width = progress + '%';
         }, 50);
     });
 }
 
-// Helper functions
 function updateClock() {
     const now = new Date();
-    const date = now.toISOString().split('T')[0];
-    const time = now.toTimeString().split(' ')[0];
-    currentTimeEl.textContent = `${date} // ${time}`;
+    currentTimeEl.textContent = `${now.toISOString().split('T')[0]} // ${now.toTimeString().split(' ')[0]}`;
 }
 
 function getTimestamp() {
     const now = new Date();
-    const h = String(now.getHours()).padStart(2, '0');
-    const m = String(now.getMinutes()).padStart(2, '0');
-    const s = String(now.getSeconds()).padStart(2, '0');
-    return `[${h}:${m}:${s}]`;
+    return `[${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}]`;
 }
 
 function addLog(message, type = '') {
     if (!logContainer) return;
     const entry = document.createElement('div');
     entry.className = 'log-entry';
-    entry.innerHTML = `
-        <span class="log-time">${getTimestamp()}</span>
-        <span class="log-arrow">></span>
-        <span class="log-text ${type}">${message}</span>
-    `;
+    entry.innerHTML = `<span class="log-time">${getTimestamp()}</span><span class="log-arrow">></span><span class="log-text ${type}">${message}</span>`;
     logContainer.appendChild(entry);
     logContainer.scrollTop = logContainer.scrollHeight;
 }
@@ -189,276 +135,386 @@ function setLoading(button, loading) {
 }
 
 function setRefreshLoading(loading) {
-    if (loading) {
-        refreshBtn.classList.add('spinning');
-        refreshBtn.disabled = true;
-    } else {
-        refreshBtn.classList.remove('spinning');
-        refreshBtn.disabled = false;
+    loading ? (refreshBtn.classList.add('spinning'), refreshBtn.disabled = true)
+             : (refreshBtn.classList.remove('spinning'), refreshBtn.disabled = false);
+}
+
+// ─── Config management ────────────────────────────────────────────────────────
+
+const PRESET_STEM_BY_ID = {
+    balanced: 'preset_balanced',
+    latency: 'preset_latency',
+    throughput: 'preset_throughput',
+    nursery: 'preset_nursery',
+    conservative: 'preset_conservative',
+    low_ram: 'preset_low_ram',
+    streaming: 'preset_streaming',
+    power: 'preset_power',
+};
+
+function setConfigEditorError(msg) {
+    const el = document.getElementById('config-editor-error');
+    if (el) el.textContent = msg || '';
+}
+
+function fillConfigEditor(name, cfg) {
+    const ta = document.getElementById('config-json-editor');
+    if (!ta) return;
+    ta.value = JSON.stringify(cfg, null, 2);
+    ta.dataset.loadedProfile = name || '';
+    setConfigEditorError('');
+}
+
+function parseConfigEditorJson() {
+    const ta = document.getElementById('config-json-editor');
+    if (!ta || !ta.value.trim()) throw new Error('Editor is empty');
+    const raw = JSON.parse(ta.value);
+    if (raw && typeof raw === 'object' && raw.config && typeof raw.config === 'object') {
+        return raw.config;
+    }
+    return raw;
+}
+
+function updatePresetChipActive(activeName) {
+    const grid = document.getElementById('config-preset-grid');
+    if (!grid) return;
+    for (const chip of grid.querySelectorAll('.config-preset-chip')) {
+        const stem = PRESET_STEM_BY_ID[chip.dataset.preset];
+        chip.classList.toggle('active', Boolean(stem && activeName === stem));
     }
 }
 
-// Setup all event listeners
+function setPresetChipsDisabled(disabled) {
+    document.querySelectorAll('.config-preset-chip').forEach((btn) => {
+        btn.disabled = disabled;
+    });
+}
+
+async function syncHeapDisplay() {
+    if (!heapSize || !isTauri) return;
+    try {
+        const info = await invoke('get_system_info');
+        heapSize.textContent = info.suggested_heap_gb * 1024 + ' MB';
+    } catch (_) {}
+}
+
+async function refreshConfigList() {
+    try {
+        const result = await invoke('list_configs');
+        if (!configSelect) return;
+        configSelect.innerHTML = '';
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.textContent = 'Select profile…';
+        configSelect.appendChild(placeholder);
+        for (const name of result.names) {
+            const opt = document.createElement('option');
+            opt.value = name;
+            opt.textContent = name;
+            if (name === result.active) opt.selected = true;
+            configSelect.appendChild(opt);
+        }
+        if (configActiveLabel) {
+            if (result.active) {
+                configActiveLabel.textContent = result.active_exists
+                    ? `Active: ${result.active}`
+                    : `Active: ${result.active} (missing — will use default)`;
+                configActiveLabel.className = result.active_exists ? 'config-active-label success' : 'config-active-label warning';
+            } else {
+                configActiveLabel.textContent = 'No active config selected';
+                configActiveLabel.className = 'config-active-label';
+            }
+        }
+        updatePresetChipActive(result.active);
+    } catch (e) {
+        console.error('Failed to load config list:', e);
+    }
+}
+
 function setupEventListeners() {
-    // Setup window controls
     setupWindowControls(btnMinimize, btnMaximize, btnClose);
     setupWindowControls(btnMinimizeLoading, btnMaximizeLoading, btnCloseLoading);
 
-    // System info refresh
+    // ─── System refresh ───────────────────────────────────────────────────────
     refreshBtn.addEventListener('click', async () => {
         setRefreshLoading(true);
         addLog('Detecting system hardware...', 'info');
-
         try {
             const info = await invoke('get_system_info');
-            console.log('Real system info:', info);
 
-            cpuInfo.innerHTML = `
-                <div class="hw-main">${info.cpu_name}</div>
-                <div class="hw-sub">${info.cpu_cores} Cores / ${info.cpu_cores * 2} Threads</div>
-            `;
+            cpuInfo.innerHTML = `<div class="hw-main">${info.cpu_name}</div><div class="hw-sub">${info.cpu_cores} Cores / ${info.cpu_threads} Threads${info.l3_cache_mb > 0 ? ` • L3 ${info.l3_cache_mb} MB` : ''}${info.has_big_cache ? ' • X3D' : ''}</div>`;
+            gpuInfo.innerHTML = `<div class="hw-main">${info.gpu_name}</div><div class="hw-sub">Graphics Adapter</div>`;
 
-            gpuInfo.innerHTML = `
-                <div class="hw-main">${info.gpu_name}</div>
-                <div class="hw-sub">Graphics Adapter</div>
-            `;
-
-            const usedPercent = ((info.total_ram_gb - info.free_ram_gb) / info.total_ram_gb * 100).toFixed(0);
-            ramFill.style.width = usedPercent + '%';
+            const usedPct = ((info.total_ram_gb - info.free_ram_gb) / info.total_ram_gb * 100).toFixed(0);
+            ramFill.style.width = usedPct + '%';
             ramTotal.textContent = info.total_ram_gb.toFixed(2) + ' GB';
             ramAvailable.textContent = info.free_ram_gb.toFixed(2) + ' GB Available';
+            heapSize.textContent = (info.suggested_heap_gb * 1024) + ' MB';
 
-            const heapMB = info.suggested_heap_gb * 1024;
-            heapSize.textContent = heapMB + ' MB';
+            addLog(`System: ${info.cpu_name}, ${info.total_ram_gb.toFixed(1)}GB RAM, L3=${info.l3_cache_mb}MB${info.has_big_cache ? ' (X3D)' : ''}`, 'success');
+            addLog(`Heap: ${info.suggested_heap_gb}GB (${info.suggested_heap_gb * 1024}MB), config: ${info.active_config || 'default'}`, 'info');
+            if (info.large_pages) addLog(`Large pages: ${info.large_page_size_mb}MB`, 'success');
 
-            addLog(`System detected: ${info.cpu_name}, ${info.gpu_name}, ${info.total_ram_gb.toFixed(2)}GB RAM (${info.free_ram_gb.toFixed(2)}GB free)`, 'success');
-            addLog(`Optimal heap size: ${heapMB}MB (${info.suggested_heap_gb}GB)`, 'info');
-
-            if (info.large_pages) {
-                addLog(`Large pages enabled: ${info.large_page_size_mb}MB`, 'success');
-            } else {
-                addLog('Large pages: not supported', 'info');
-            }
-        } catch (error) {
-            addLog(`System detection failed: ${error}`, 'error');
-            console.error('System detection error:', error);
+            await refreshConfigList();
+        } catch (e) {
+            addLog(`System detection failed: ${e}`, 'error');
         } finally {
             setRefreshLoading(false);
         }
     });
 
-    // IFEO Install
+    // ─── IFEO ─────────────────────────────────────────────────────────────────
     installBtn.addEventListener('click', async () => {
         setLoading(installBtn, true);
-        addLog('Installing IFEO registry hook...', 'info');
-
+        addLog('Installing IFEO hook (service.exe)...', 'info');
         try {
             const result = await invoke('install_ifeo');
             ifeoResult.textContent = result;
             ifeoResult.className = 'ifeo-result success';
             ifeoStatus.className = 'status-badge active';
             ifeoStatus.innerHTML = '<span class="status-dot active"></span> ACTIVE';
-            addLog('IFEO installation successful', 'success');
-            addLog('Wrapper will now intercept game launches', 'info');
-        } catch (error) {
-            ifeoResult.textContent = error;
+            addLog('IFEO installed successfully', 'success');
+        } catch (e) {
+            ifeoResult.textContent = e;
             ifeoResult.className = 'ifeo-result error';
-            addLog(`IFEO installation failed: ${error}`, 'error');
-            console.error('IFEO install error:', error);
+            addLog(`IFEO install failed: ${e}`, 'error');
         } finally {
             setLoading(installBtn, false);
         }
     });
 
-    // IFEO Uninstall
     uninstallBtn.addEventListener('click', async () => {
         setLoading(uninstallBtn, true);
-        addLog('Removing IFEO registry hook...', 'info');
-
+        addLog('Removing IFEO hook...', 'info');
         try {
             const result = await invoke('uninstall_ifeo');
             ifeoResult.textContent = result;
             ifeoResult.className = 'ifeo-result success';
             ifeoStatus.className = 'status-badge inactive';
             ifeoStatus.innerHTML = '<span class="status-dot inactive"></span> INACTIVE';
-            addLog('IFEO removal successful', 'success');
-        } catch (error) {
-            ifeoResult.textContent = error;
+            addLog('IFEO removed', 'success');
+        } catch (e) {
+            ifeoResult.textContent = e;
             ifeoResult.className = 'ifeo-result error';
-            addLog(`IFEO removal failed: ${error}`, 'error');
-            console.error('IFEO uninstall error:', error);
+            addLog(`IFEO remove failed: ${e}`, 'error');
         } finally {
             setLoading(uninstallBtn, false);
         }
     });
 
-    // IFEO Verify
     verifyBtn.addEventListener('click', async () => {
         setLoading(verifyBtn, true);
-        addLog('Checking IFEO installation status...', 'info');
-
+        addLog('Checking IFEO status...', 'info');
         try {
             const result = await invoke('check_status');
             ifeoResult.textContent = result;
             ifeoResult.className = 'ifeo-result info';
-
             const isActive = !result.includes('Not installed') && !result.includes('not installed');
-            if (isActive) {
-                ifeoStatus.className = 'status-badge active';
-                ifeoStatus.innerHTML = '<span class="status-dot active"></span> ACTIVE';
-                addLog('IFEO wrapper is active', 'success');
-            } else {
-                ifeoStatus.className = 'status-badge inactive';
-                ifeoStatus.innerHTML = '<span class="status-dot inactive"></span> INACTIVE';
-                addLog('IFEO wrapper is not installed', 'error');
-            }
-        } catch (error) {
-            ifeoResult.textContent = error;
+            ifeoStatus.className = `status-badge ${isActive ? 'active' : 'inactive'}`;
+            ifeoStatus.innerHTML = `<span class="status-dot ${isActive ? 'active' : 'inactive'}"></span> ${isActive ? 'ACTIVE' : 'INACTIVE'}`;
+            addLog(isActive ? 'IFEO is active' : 'IFEO not installed', isActive ? 'success' : 'error');
+        } catch (e) {
+            ifeoResult.textContent = e;
             ifeoResult.className = 'ifeo-result error';
-            addLog(`Status check failed: ${error}`, 'error');
-            console.error('IFEO status error:', error);
+            addLog(`Status check failed: ${e}`, 'error');
         } finally {
             setLoading(verifyBtn, false);
         }
     });
 
-    // Browse for executable
-    browseBtn.addEventListener('click', async () => {
+    // ─── Browse ───────────────────────────────────────────────────────────────
+    browseBtn?.addEventListener('click', async () => {
+        if (!isTauri) return;
         try {
-            if (isTauri) {
-                const { open } = await import('@tauri-apps/plugin-dialog');
-                const selected = await open({
-                    multiple: false,
-                    directory: false,
-                    filters: [{
-                        name: 'Game Executable',
-                        extensions: ['exe']
-                    }]
-                });
+            const { open } = await import('@tauri-apps/plugin-dialog');
+            const selected = await open({ multiple: false, directory: false, filters: [{ name: 'Executable', extensions: ['exe'] }] });
+            if (selected) {
+                const path = typeof selected === 'string' ? selected : selected[0];
+                if (path) { targetPath.value = path; addLog(`Executable: ${path}`, 'info'); }
+            }
+        } catch (e) { addLog(`Browse failed: ${e}`, 'error'); }
+    });
 
-                if (selected) {
-                    const path = typeof selected === 'string' ? selected :
-                                (Array.isArray(selected) ? selected[0] : null);
-                    if (path) {
-                        targetPath.value = path;
-                        addLog(`Selected game executable: ${path}`, 'info');
-                    }
+    browseDirBtn?.addEventListener('click', async () => {
+        if (!isTauri) return;
+        try {
+            const { open } = await import('@tauri-apps/plugin-dialog');
+            const selected = await open({ multiple: false, directory: true });
+            if (selected) {
+                const path = typeof selected === 'string' ? selected : selected[0];
+                if (path) {
+                    gameDir.value = path;
+                    addLog(`Directory: ${path}`, 'info');
+                    try { await invoke('save_game_dir', { gameDir: path }); } catch (_) {}
                 }
             }
-        } catch (error) {
-            addLog(`File selection failed: ${error}`, 'error');
-            console.error('Browse error:', error);
+        } catch (e) { addLog(`Browse failed: ${e}`, 'error'); }
+    });
+
+    gameDir?.addEventListener('change', async () => {
+        if (gameDir.value.trim() && isTauri) {
+            try { await invoke('save_game_dir', { gameDir: gameDir.value.trim() }); } catch (_) {}
         }
     });
 
-    // Browse for directory
-    browseDirBtn.addEventListener('click', async () => {
+    // ─── Config management ────────────────────────────────────────────────────
+    selectConfigBtn?.addEventListener('click', async () => {
+        if (!configSelect) return;
+        const name = configSelect.value;
+        if (!name) return;
+        setLoading(selectConfigBtn, true);
         try {
-            if (isTauri) {
-                const { open } = await import('@tauri-apps/plugin-dialog');
-                const selected = await open({
-                    multiple: false,
-                    directory: true
-                });
-
-                if (selected) {
-                    const path = typeof selected === 'string' ? selected :
-                                (Array.isArray(selected) ? selected[0] : null);
-                    if (path) {
-                        gameDir.value = path;
-                        addLog(`Selected game directory: ${path}`, 'info');
-                        // Auto-save directory
-                        try {
-                            await invoke('save_game_dir', { gameDir: path });
-                        } catch (e) {
-                            console.error('Failed to save game dir:', e);
-                        }
-                    }
-                }
-            }
-        } catch (error) {
-            addLog(`Directory selection failed: ${error}`, 'error');
-            console.error('Browse directory error:', error);
-        }
-    });
-
-    // Auto-save game directory on manual input change
-    gameDir.addEventListener('change', async () => {
-        const dir = gameDir.value.trim();
-        if (dir && isTauri) {
+            const result = await invoke('select_config', { name });
+            addLog(result, 'success');
+            await refreshConfigList();
+            await syncHeapDisplay();
             try {
-                await invoke('save_game_dir', { gameDir: dir });
-            } catch (e) {
-                console.error('Failed to save game dir:', e);
-            }
+                const active = await invoke('get_active_config');
+                fillConfigEditor(active.name, active.config);
+            } catch (_) {}
+        } catch (e) {
+            addLog(`Config select failed: ${e}`, 'error');
+        } finally {
+            setLoading(selectConfigBtn, false);
+        }
+    });
+
+    regenerateConfigBtn?.addEventListener('click', async () => {
+        setLoading(regenerateConfigBtn, true);
+        addLog('Regenerating default config for current hardware...', 'info');
+        try {
+            const result = await invoke('regenerate_config');
+            addLog(result, 'success');
+            await refreshConfigList();
+            await syncHeapDisplay();
+            try {
+                const active = await invoke('get_active_config');
+                fillConfigEditor(active.name, active.config);
+            } catch (_) {}
+        } catch (e) {
+            addLog(`Regenerate failed: ${e}`, 'error');
+        } finally {
+            setLoading(regenerateConfigBtn, false);
+        }
+    });
+
+    document.getElementById('config-preset-grid')?.addEventListener('click', async (ev) => {
+        const chip = ev.target.closest('.config-preset-chip');
+        if (!chip || chip.disabled) return;
+        const preset = chip.dataset.preset;
+        if (!preset) return;
+        setPresetChipsDisabled(true);
+        addLog(`Applying preset: ${preset}…`, 'info');
+        try {
+            const result = await invoke('apply_config_preset', { preset });
+            addLog(result, 'success');
+            await refreshConfigList();
+            await syncHeapDisplay();
+            try {
+                const active = await invoke('get_active_config');
+                fillConfigEditor(active.name, active.config);
+            } catch (_) {}
+        } catch (e) {
+            addLog(`Preset failed: ${e}`, 'error');
+        } finally {
+            setPresetChipsDisabled(false);
+        }
+    });
+
+    document.getElementById('config-editor-load-active')?.addEventListener('click', async () => {
+        if (!isTauri) return;
+        try {
+            const res = await invoke('get_active_config');
+            fillConfigEditor(res.name, res.config);
+            addLog(`Editor: loaded active profile "${res.name}"`, 'info');
+        } catch (e) {
+            setConfigEditorError(String(e));
+            addLog(`Load active config failed: ${e}`, 'error');
+        }
+    });
+
+    document.getElementById('config-editor-load-selected')?.addEventListener('click', async () => {
+        if (!isTauri || !configSelect?.value) {
+            setConfigEditorError('Select a profile in the list first.');
+            return;
+        }
+        const name = configSelect.value;
+        try {
+            const res = await invoke('load_config_by_name', { name });
+            fillConfigEditor(res.name, res.config);
+            addLog(`Editor: loaded "${name}"`, 'info');
+        } catch (e) {
+            setConfigEditorError(String(e));
+            addLog(`Load config failed: ${e}`, 'error');
+        }
+    });
+
+    document.getElementById('config-editor-save')?.addEventListener('click', async () => {
+        if (!isTauri || !configSelect?.value) {
+            setConfigEditorError('Select a profile name in the list (Save overwrites that file).');
+            return;
+        }
+        const name = configSelect.value;
+        const btn = document.getElementById('config-editor-save');
+        if (!btn) return;
+        setLoading(btn, true);
+        try {
+            const cfg = parseConfigEditorJson();
+            const result = await invoke('save_config', { name, cfg });
+            addLog(result, 'success');
+            await refreshConfigList();
+            await syncHeapDisplay();
+            try {
+                const res = await invoke('load_config_by_name', { name });
+                fillConfigEditor(res.name, res.config);
+            } catch (_) {}
+            setConfigEditorError('');
+        } catch (e) {
+            const msg = e instanceof SyntaxError ? `Invalid JSON: ${e.message}` : String(e);
+            setConfigEditorError(msg);
+            addLog(`Save config failed: ${msg}`, 'error');
+        } finally {
+            setLoading(btn, false);
         }
     });
 }
 
-// Main initialization function
 async function initializeApp() {
-    // Initialize clock
     updateClock();
     setInterval(updateClock, 1000);
 
-    // Load saved game directory
     if (isTauri) {
         try {
             const savedDir = await invoke('load_game_dir');
-            if (savedDir) {
-                gameDir.value = savedDir;
-                addLog(`Loaded saved game directory: ${savedDir}`, 'info');
-            }
-        } catch (e) {
-            console.error('Failed to load game dir:', e);
-        }
+            if (savedDir && gameDir) { gameDir.value = savedDir; addLog(`Loaded saved directory: ${savedDir}`, 'info'); }
+        } catch (_) {}
+        try {
+            await refreshConfigList();
+            try {
+                const active = await invoke('get_active_config');
+                fillConfigEditor(active.name, active.config);
+            } catch (_) {}
+        } catch (_) {}
     }
 
-    // Initial system info load
-    addLog('Application started successfully', 'success');
+    addLog('Application started', 'success');
+    setTimeout(() => refreshBtn.click(), 500);
 
-    // Auto-detect system on startup
-    setTimeout(() => {
-        refreshBtn.click();
-    }, 500);
-
-    // IFEO status check on startup
     setTimeout(async () => {
         try {
             const result = await invoke('check_status');
             const isActive = !result.includes('Not installed') && !result.includes('not installed');
-
-            if (isActive) {
-                ifeoStatus.className = 'status-badge active';
-                ifeoStatus.innerHTML = '<span class="status-dot active"></span> ACTIVE';
-                addLog('IFEO is active on startup', 'success');
-            } else {
-                ifeoStatus.className = 'status-badge inactive';
-                ifeoStatus.innerHTML = '<span class="status-dot inactive"></span> INACTIVE';
-                addLog('IFEO is not installed on startup', 'info');
-            }
-        } catch (error) {
-            console.error('Startup IFEO check failed:', error);
-        }
+            ifeoStatus.className = `status-badge ${isActive ? 'active' : 'inactive'}`;
+            ifeoStatus.innerHTML = `<span class="status-dot ${isActive ? 'active' : 'inactive'}"></span> ${isActive ? 'ACTIVE' : 'INACTIVE'}`;
+            addLog(`IFEO status: ${isActive ? 'active' : 'not installed'}`, isActive ? 'success' : 'info');
+        } catch (_) {}
     }, 1000);
 }
 
-// Start everything when DOM is loaded
 window.addEventListener('DOMContentLoaded', async () => {
-    // Initialize Tauri API
     await initTauriAPI();
-    
-    // Initialize element references
     initElements();
-    
-    // Start loading animation
     await animateLoadingScreen();
-    
-    console.log('Loading screen completed');
-    
-    // Setup event listeners
     setupEventListeners();
-    
-    // Initialize the app
     initializeApp();
 });
