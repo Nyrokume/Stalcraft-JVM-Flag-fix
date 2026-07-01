@@ -1,31 +1,35 @@
 [package]
-name = "stalart-jvm-wrapper"
-version = "1.1.0"
-description = "STALART JVM Wrapper — IFEO JVM tuning for Windows"
+name = "stalcraft-jvm-wrapper"
+version = "1.3.0"
+description = "Stalcraft JVM Wrapper — IFEO JVM tuning for Windows"
 authors = []
 license = "MIT"
 repository = ""
 edition = "2021"
 
+[lib]
+name = "stalcraft_jvm_wrapper"
+path = "src/lib.rs"
+
+[[bin]]
+name = "stalcraft-jvm-wrapper"
+path = "src/main.rs"
+required-features = ["gui"]
+
+[[bin]]
+name = "service"
+path = "src/bin/service.rs"
+
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = [] }
-tauri-plugin-dialog = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-windows-sys = { version = "0.59", features = [
-    "Win32_System_Threading",
-    "Win32_System_Registry",
-    "Win32_System_ProcessStatus",
-    "Win32_System_Memory",
-    "Win32_System_SystemInformation",
-    "Win32_UI_WindowsAndMessaging",
-    "Win32_Foundation",
-    "Win32_Security",
-] }
+tauri = { version = "2", features = [], optional = true }
+tauri-plugin-dialog = { version = "2", optional = true }
 
 [features]
-default = ["custom-protocol"]
+default = ["gui", "custom-protocol"]
+gui = ["dep:tauri", "dep:tauri-plugin-dialog"]
 custom-protocol = ["tauri/custom-protocol"]

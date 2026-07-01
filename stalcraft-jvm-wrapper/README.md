@@ -1,56 +1,53 @@
-# STALART JVM Wrapper
+# Stalcraft JVM Wrapper
 
-JVM tuning wrapper for **STALART** / **STALCRAFT** on Windows (Tauri + Rust).
+Tauri/Rust port of [EXBO-Community/stalcraft-jvm-optimization](https://github.com/EXBO-Community/stalcraft-jvm-optimization).
 
-## Features
+## Layout
 
-- Hardware detection: RAM, CPU threads, L3 cache, SMBIOS memory speed tier, large pages
-- Auto-generated `configs/default.json` (Go-compatible schema)
-- IFEO install/uninstall/status via GUI or CLI flags
-- Single `wrapper.exe`: GUI + silent debugger service mode
-- Structured log at `logs/wrapper.log` (paths redacted, 2 MB rotation)
+```
+%AppData%\Roaming\EXBO\jvm_wrapper\
+  stalcraft-jvm-wrapper.exe   ← GUI / installer
+  service.exe                 ← IFEO debugger (required)
+  configs\default.json
+  logs\wrapper.log
+  examples\
+```
 
 ## IFEO targets
 
-Hooks client executables only:
+| Image | Behavior |
+|-------|----------|
+| `stalcraft.exe`, `stalcraftw.exe`, `stalzone.exe`, `stalzonew.exe` | Always inject JVM flags |
+| `java.exe`, `javaw.exe` | Inject only under `\runtime\stalcraft\` or `\exbo\` |
 
-- `stalart.exe`, `stalartw.exe`
-- `stalcraft.exe`, `stalcraftw.exe`
-
-Registry active profile: `HKCU\Software\StalcraftWrapper\ActiveConfig` (migrates from legacy `StalartJvmWrapper`).
+Registry: native 64-bit + WOW6432Node.
 
 ## Quick start
 
-1. Add launcher/game folders to antivirus exclusions.
-2. Place `jvm_wrapper/` in the **launcher root** (next to the main launcher exe).
-3. Run `wrapper.exe` → **Install** (admin) → launch the game normally.
+1. Add `%AppData%\Roaming\EXBO` to antivirus exclusions.
+2. Run `npm run build:prod` or download release `wrapper.zip`.
+3. Extract to `%AppData%\Roaming\EXBO\jvm_wrapper\`.
+4. Launch GUI → **INSTALL** (UAC) → **VERIFY**.
+5. Fully restart EXBO launcher → play.
+6. `logs\wrapper.log` → `service_invoked` → `jvm_mode=INJECTED`.
 
-### CLI
-
-```text
-wrapper.exe --install
-wrapper.exe --uninstall
-wrapper.exe --status
-```
-
-## Config profiles
-
-- JSON files in `configs/` next to the exe
-- **Regen** rebuilds `default.json` from detected hardware
-- **Apply** sets the active profile in registry
-- Optional high-end profile: copy [`examples/8khz.json`](examples/8khz.json) to `configs/`
+**Do not run `service.exe` manually.**
 
 ## Build
 
-```bash
+```powershell
 npm install
-npm run dev          # Tauri + Vite (hardware detection works)
-npm run build:prod   # release exe + installers
+npm run build:prod
 ```
 
-Release artifacts: `src-tauri/target/release/stalart-jvm-wrapper.exe`, `src-tauri/target/release/bundle/`.
+Output: `wrapper.zip` with both executables and `examples/`.
 
-## Requirements
+## CLI
 
-- Windows 10/11, admin for IFEO install
-- 8+ GB RAM (12+ GB recommended for PreTouch)
+```text
+stalcraft-jvm-wrapper.exe --install
+stalcraft-jvm-wrapper.exe --uninstall
+stalcraft-jvm-wrapper.exe --status
+```
+
+See [README_RU.md](./README_RU.md) for Russian.

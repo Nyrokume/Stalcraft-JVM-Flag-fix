@@ -18,7 +18,8 @@ Thumbs.db
 # Tauri generated
 src-tauri/gen/
 
-# Temporary
+release/
+wrapper.zip
 *.log
 npm-debug.log*
 .env

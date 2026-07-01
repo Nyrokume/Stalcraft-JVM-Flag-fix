@@ -1,10 +1,10 @@
-// ifeo.rs — порт installer.go (stalart* + stalcraft* client targets)
+// ifeo.rs — EXBO stalcraft-jvm-optimization installer parity
 
 use std::ffi::OsStr;
 use std::os::windows::ffi::OsStrExt;
 use std::path::PathBuf;
 
-use crate::log;
+use crate::{config, log, system};
 
 #[link(name = "advapi32")]
 extern "system" {
@@ -55,41 +55,55 @@ const HKEY_LOCAL_MACHINE: isize = -2147483648i64 as isize;
 const KEY_ALL_ACCESS: u32 = 0xF003F;
 const KEY_SET_VALUE: u32 = 0x0002;
 const KEY_QUERY_VALUE: u32 = 0x0001;
-const KEY_WOW64_64KEY: u32 = 0x0100;
-const KEY_READ_WRITE: u32 = KEY_SET_VALUE | KEY_WOW64_64KEY;
-const KEY_READ_64: u32 = KEY_QUERY_VALUE | KEY_WOW64_64KEY;
+const KEY_WOW64_32KEY: u32 = 0x0200;
+const KEY_READ_WRITE_32: u32 = KEY_SET_VALUE | KEY_WOW64_32KEY;
+const KEY_READ_32: u32 = KEY_QUERY_VALUE | KEY_WOW64_32KEY;
 const REG_SZ: u32 = 1;
 const ERROR_SUCCESS: i32 = 0;
 const ERROR_FILE_NOT_FOUND: i32 = 2;
 
 const IFEO_PATH: &str =
     r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options";
+const SERVICE_NAME: &str = "service.exe";
 
+/// EXBO + EXBO runtime JVM launchers (win64/java/bin).
 pub const IFEO_TARGETS: &[&str] = &[
-    "stalart.exe",
-    "stalartw.exe",
     "stalcraft.exe",
     "stalcraftw.exe",
+    "stalzone.exe",
+    "stalzonew.exe",
+    "java.exe",
+    "javaw.exe",
 ];
 
-fn path_ends_with_executable(path_lower: &str, name: &str) -> bool {
-    if path_lower.len() < name.len() || !path_lower.ends_with(name) {
-        return false;
-    }
-    if path_lower.len() == name.len() {
+const LEGACY_TARGETS: &[&str] = &["stalart.exe", "stalartw.exe"];
+
+const GAME_PATH_MARKERS: &[&str] = &[
+    r"\runtime\stalcraft",
+    r"\stalcraft\",
+    r"\exbo\",
+    "/runtime/stalcraft",
+    "/stalcraft/",
+    "/exbo/",
+];
+
+pub fn should_inject_jvm(path: &str) -> bool {
+    let lower = path.to_lowercase();
+    let name = std::path::Path::new(path)
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+    if matches!(
+        name.as_str(),
+        "stalcraft.exe" | "stalcraftw.exe" | "stalzone.exe" | "stalzonew.exe"
+    ) {
         return true;
     }
-    matches!(
-        path_lower.as_bytes()[path_lower.len() - name.len() - 1],
-        b'\\' | b'/'
-    )
-}
-
-pub fn is_ifeo_debugger_invocation(image_path: &str) -> bool {
-    let lower = image_path.to_lowercase();
-    IFEO_TARGETS
-        .iter()
-        .any(|&exe| path_ends_with_executable(&lower, exe))
+    if name == "java.exe" || name == "javaw.exe" {
+        return GAME_PATH_MARKERS.iter().any(|m| lower.contains(m));
+    }
+    false
 }
 
 #[derive(Debug, Clone)]
@@ -103,15 +117,29 @@ fn to_wide(s: &str) -> Vec<u16> {
     OsStr::new(s).encode_wide().chain(Some(0)).collect()
 }
 
-fn resolve_wrapper() -> Result<PathBuf, String> {
-    let self_path = std::env::current_exe().map_err(|e| format!("resolve self: {}", e))?;
-    if !self_path.is_file() {
-        return Err("wrapper executable path invalid".to_string());
-    }
-    Ok(self_path)
+pub fn service_ready() -> bool {
+    resolve_service().is_ok()
 }
 
-fn set_debugger(target: &str, debugger: &PathBuf) -> Result<(), String> {
+fn resolve_service() -> Result<PathBuf, String> {
+    let self_path = std::env::current_exe().map_err(|e| format!("resolve self: {}", e))?;
+    let dir = self_path
+        .parent()
+        .ok_or_else(|| "wrapper executable has no parent directory".to_string())?;
+    let service = dir.join(SERVICE_NAME);
+    if !service.is_file() {
+        return Err(format!(
+            "{} must live next to stalcraft-jvm-wrapper.exe (copy both from target/release/)",
+            SERVICE_NAME
+        ));
+    }
+    Ok(service)
+}
+
+const KEY_READ_WRITE_NATIVE: u32 = KEY_SET_VALUE;
+const KEY_READ_NATIVE: u32 = KEY_QUERY_VALUE;
+
+fn set_debugger_in_view(target: &str, debugger: &PathBuf, wow64: u32) -> Result<(), String> {
     let subkey = format!(r"{}\{}", IFEO_PATH, target);
     let wide_subkey = to_wide(&subkey);
     let wide_debugger = to_wide("Debugger");
@@ -126,14 +154,19 @@ fn set_debugger(target: &str, debugger: &PathBuf) -> Result<(), String> {
             0,
             std::ptr::null(),
             0,
-            KEY_ALL_ACCESS | KEY_WOW64_64KEY,
+            KEY_ALL_ACCESS | wow64,
             std::ptr::null(),
             &mut hkey,
             std::ptr::null_mut(),
         )
     };
     if r != ERROR_SUCCESS {
-        return Err(format!("create IFEO key for {}: {}", target, r));
+        let view = if wow64 == KEY_WOW64_32KEY {
+            "32-bit"
+        } else {
+            "64-bit"
+        };
+        return Err(format!("create IFEO key for {} ({view}): {}", target, r));
     }
 
     let data = unsafe {
@@ -151,15 +184,32 @@ fn set_debugger(target: &str, debugger: &PathBuf) -> Result<(), String> {
     };
     unsafe { RegCloseKey(hkey) };
     if r != ERROR_SUCCESS {
-        return Err(format!("set Debugger for {}: {}", target, r));
+        let view = if wow64 == KEY_WOW64_32KEY {
+            "32-bit"
+        } else {
+            "64-bit"
+        };
+        return Err(format!("set Debugger for {} ({view}): {}", target, r));
     }
     Ok(())
 }
 
-fn clear_debugger(target: &str) -> Result<(), String> {
+fn set_debugger(target: &str, debugger: &PathBuf) -> Result<(), String> {
+    // ponytail: native 64-bit view = no WOW64 flag (matches EXBO Go installer)
+    set_debugger_in_view(target, debugger, 0)?;
+    set_debugger_in_view(target, debugger, KEY_WOW64_32KEY)?;
+    Ok(())
+}
+
+fn clear_debugger_in_view(target: &str, wow64: u32) -> Result<(), String> {
     let subkey = format!(r"{}\{}", IFEO_PATH, target);
     let wide_subkey = to_wide(&subkey);
     let wide_debugger = to_wide("Debugger");
+    let access = if wow64 == KEY_WOW64_32KEY {
+        KEY_READ_WRITE_32
+    } else {
+        KEY_READ_WRITE_NATIVE
+    };
 
     let mut hkey: isize = 0;
     let r = unsafe {
@@ -167,26 +217,42 @@ fn clear_debugger(target: &str) -> Result<(), String> {
             HKEY_LOCAL_MACHINE,
             wide_subkey.as_ptr(),
             0,
-            KEY_READ_WRITE,
+            access,
             &mut hkey,
         )
     };
     if r != ERROR_SUCCESS {
-        return Err(format!("open IFEO key for {}: {}", target, r));
+        return Ok(());
     }
 
     let r = unsafe { RegDeleteValueW(hkey, wide_debugger.as_ptr()) };
     unsafe { RegCloseKey(hkey) };
     if r != ERROR_SUCCESS && r != ERROR_FILE_NOT_FOUND {
-        return Err(format!("delete Debugger for {}: {}", target, r));
+        let view = if wow64 == KEY_WOW64_32KEY {
+            "32-bit"
+        } else {
+            "64-bit"
+        };
+        return Err(format!("delete Debugger for {} ({view}): {}", target, r));
     }
     Ok(())
 }
 
-fn status_for(target: &str) -> IfeoEntry {
+fn clear_debugger(target: &str) -> Result<(), String> {
+    clear_debugger_in_view(target, 0)?;
+    clear_debugger_in_view(target, KEY_WOW64_32KEY)?;
+    Ok(())
+}
+
+fn read_debugger_in_view(target: &str, wow64: u32) -> Option<String> {
     let subkey = format!(r"{}\{}", IFEO_PATH, target);
     let wide_subkey = to_wide(&subkey);
     let wide_debugger = to_wide("Debugger");
+    let access = if wow64 == KEY_WOW64_32KEY {
+        KEY_READ_32
+    } else {
+        KEY_READ_NATIVE
+    };
 
     let mut hkey: isize = 0;
     let r = unsafe {
@@ -194,16 +260,12 @@ fn status_for(target: &str) -> IfeoEntry {
             HKEY_LOCAL_MACHINE,
             wide_subkey.as_ptr(),
             0,
-            KEY_READ_64,
+            access,
             &mut hkey,
         )
     };
     if r != ERROR_SUCCESS {
-        return IfeoEntry {
-            target: target.to_string(),
-            installed: false,
-            debugger: String::new(),
-        };
+        return None;
     }
 
     let mut buf_len: u32 = 0;
@@ -219,11 +281,7 @@ fn status_for(target: &str) -> IfeoEntry {
     };
     if q != ERROR_SUCCESS || buf_len == 0 {
         unsafe { RegCloseKey(hkey) };
-        return IfeoEntry {
-            target: target.to_string(),
-            installed: false,
-            debugger: String::new(),
-        };
+        return None;
     }
 
     let mut buf = vec![0u8; buf_len as usize + 2];
@@ -240,24 +298,26 @@ fn status_for(target: &str) -> IfeoEntry {
     };
     unsafe { RegCloseKey(hkey) };
     if q != ERROR_SUCCESS {
-        return IfeoEntry {
-            target: target.to_string(),
-            installed: false,
-            debugger: String::new(),
-        };
+        return None;
     }
 
-    let wchars = actual as usize / 2;
-    let wide_slice: Vec<u16> = (0..wchars)
-        .map(|i| u16::from_le_bytes([buf[i * 2], buf[i * 2 + 1]]))
-        .collect();
+    let wchars = (actual as usize).saturating_div(2);
+    let wide_slice = unsafe { std::slice::from_raw_parts(buf.as_ptr() as *const u16, wchars) };
     let end = wide_slice.iter().position(|&c| c == 0).unwrap_or(wchars);
-    let val = String::from_utf16(&wide_slice[..end]).unwrap_or_default();
+    String::from_utf16(&wide_slice[..end])
+        .ok()
+        .filter(|s| !s.is_empty())
+}
+
+fn status_for(target: &str) -> IfeoEntry {
+    let debugger = read_debugger_in_view(target, 0)
+        .or_else(|| read_debugger_in_view(target, KEY_WOW64_32KEY))
+        .unwrap_or_default();
 
     IfeoEntry {
         target: target.to_string(),
-        installed: !val.is_empty(),
-        debugger: val,
+        installed: !debugger.is_empty(),
+        debugger,
     }
 }
 
@@ -265,31 +325,37 @@ pub fn is_admin() -> bool {
     unsafe { IsUserAnAdmin() != 0 }
 }
 
-/// Install IFEO for all client targets. `override_path` ignored (kept for CLI compat).
 pub fn install(_override_path: Option<&str>) -> Result<String, String> {
     if !is_admin() {
         return Err("Administrator privileges required for IFEO install".to_string());
     }
 
-    let wrapper = resolve_wrapper()?;
+    let service = resolve_service()?;
+    let sys = system::detect_system();
+    config::ensure(&sys).map_err(|e| format!("config ensure: {}", e))?;
+
     log::append_wrapper_log_line(&format!(
-        "IFEO install_start targets={}",
+        "IFEO install_start targets={} debugger=service.exe",
         IFEO_TARGETS.len()
     ));
 
+    for target in LEGACY_TARGETS {
+        let _ = clear_debugger(target);
+    }
+
     for target in IFEO_TARGETS {
-        set_debugger(target, &wrapper)?;
+        set_debugger(target, &service)?;
+        verify_debugger_set(target, &service)?;
         log::append_wrapper_log_line(&format!(
-            "IFEO target_set target={} debugger={}",
+            "IFEO target_set target={} debugger={} views=64+32",
             target,
-            log::redact_path(&wrapper.to_string_lossy())
+            log::redact_path(&service.to_string_lossy())
         ));
     }
 
     let msg = format!(
-        "IFEO installed for {} targets. Debugger = \"{}\"",
-        IFEO_TARGETS.len(),
-        wrapper.display()
+        "IFEO installed for stalcraft.exe, stalcraftw.exe, stalzone.exe, stalzonew.exe. Debugger = \"{}\"",
+        service.display()
     );
     log::append_wrapper_log_line("IFEO install_ok");
     Ok(msg)
@@ -301,7 +367,7 @@ pub fn uninstall() -> Result<String, String> {
     }
 
     let mut errors = Vec::new();
-    for target in IFEO_TARGETS {
+    for target in IFEO_TARGETS.iter().chain(LEGACY_TARGETS.iter()) {
         if let Err(e) = clear_debugger(target) {
             errors.push(format!("{}: {}", target, e));
         }
@@ -313,19 +379,47 @@ pub fn uninstall() -> Result<String, String> {
     ));
 
     if errors.is_empty() {
-        Ok("IFEO uninstalled for all targets.".to_string())
+        Ok("IFEO uninstalled.".to_string())
     } else {
         Err(errors.join("; "))
     }
+}
+
+fn normalize_debugger_path(s: &str) -> String {
+    s.trim().trim_matches('"').to_lowercase()
+}
+
+fn verify_debugger_set(target: &str, service: &PathBuf) -> Result<(), String> {
+    let want = normalize_debugger_path(&service.to_string_lossy());
+    for (view, flag) in [("64-bit", 0u32), ("32-bit", KEY_WOW64_32KEY)] {
+        let got = read_debugger_in_view(target, flag).unwrap_or_default();
+        if normalize_debugger_path(&got) != want {
+            return Err(format!(
+                "IFEO verify failed for {} ({view}): {:?}",
+                target, got
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn debugger_points_to_service(debugger: &str) -> bool {
+    normalize_debugger_path(debugger).ends_with("service.exe")
 }
 
 pub fn status() -> Result<String, String> {
     let entries: Vec<IfeoEntry> = IFEO_TARGETS.iter().map(|t| status_for(t)).collect();
     let mut lines = Vec::new();
     for e in &entries {
-        if e.installed {
+        if e.installed && debugger_points_to_service(&e.debugger) {
             lines.push(format!(
-                "{}: installed (Debugger={})",
+                "{}: ok (Debugger={})",
+                e.target,
+                log::redact_path(&e.debugger)
+            ));
+        } else if e.installed {
+            lines.push(format!(
+                "{}: wrong debugger (expected service.exe, got {})",
                 e.target,
                 log::redact_path(&e.debugger)
             ));
@@ -333,10 +427,40 @@ pub fn status() -> Result<String, String> {
             lines.push(format!("{}: not installed", e.target));
         }
     }
+    if service_ready() {
+        lines.push("service.exe: present".to_string());
+    } else {
+        lines.push("service.exe: MISSING — copy next to stalcraft-jvm-wrapper.exe".to_string());
+    }
     Ok(lines.join("\n"))
 }
 
-#[allow(dead_code)]
-pub fn status_entries() -> Vec<IfeoEntry> {
-    IFEO_TARGETS.iter().map(|t| status_for(t)).collect()
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn ifeo_targets_include_runtime_launchers() {
+        for name in [
+            "stalcraft.exe",
+            "stalcraftw.exe",
+            "stalzone.exe",
+            "stalzonew.exe",
+            "java.exe",
+            "javaw.exe",
+        ] {
+            assert!(IFEO_TARGETS.contains(&name));
+        }
+    }
+
+    #[test]
+    fn game_java_injects() {
+        let p = r"C:\Users\me\AppData\Roaming\EXBO\runtime\stalcraft\win64\java\bin\javaw.exe";
+        assert!(should_inject_jvm(p));
+    }
+
+    #[test]
+    fn system_java_passthrough() {
+        assert!(!should_inject_jvm(r"C:\Program Files\Java\bin\java.exe"));
+    }
 }

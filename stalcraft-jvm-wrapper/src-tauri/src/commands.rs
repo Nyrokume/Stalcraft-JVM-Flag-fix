@@ -3,7 +3,7 @@
 use serde::Serialize;
 use tauri::command;
 
-use crate::{config, ifeo, log, system};
+use crate::{config, elevate, ifeo, log, system};
 
 #[derive(Serialize)]
 pub struct SystemInfoResponse {
@@ -53,12 +53,31 @@ pub fn get_system_info() -> Result<SystemInfoResponse, String> {
 
 #[command]
 pub fn install_ifeo() -> Result<String, String> {
-    ifeo::install(None)
+    if !ifeo::service_ready() {
+        return Err(
+            "service.exe not found next to this app — copy both files from release/".to_string(),
+        );
+    }
+    if ifeo::is_admin() {
+        return ifeo::install(None);
+    }
+    let code = elevate::run_as_admin("--install")?;
+    if code != 0 {
+        return Err(format!("Install failed (exit {})", code));
+    }
+    ifeo::status()
 }
 
 #[command]
 pub fn uninstall_ifeo() -> Result<String, String> {
-    ifeo::uninstall()
+    if ifeo::is_admin() {
+        return ifeo::uninstall();
+    }
+    let code = elevate::run_as_admin("--uninstall")?;
+    if code != 0 {
+        return Err(format!("Uninstall failed (exit {})", code));
+    }
+    Ok("IFEO uninstalled.".to_string())
 }
 
 #[command]
@@ -118,16 +137,4 @@ pub struct ConfigResponse {
 pub fn get_active_config() -> Result<ConfigResponse, String> {
     let (cfg, name) = config::load_active()?;
     Ok(ConfigResponse { name, config: cfg })
-}
-
-#[command]
-pub fn load_config_by_name(name: String) -> Result<ConfigResponse, String> {
-    let cfg = config::load(&name)?;
-    Ok(ConfigResponse { name, config: cfg })
-}
-
-#[command]
-pub fn save_config(name: String, cfg: config::Config) -> Result<String, String> {
-    config::save(&cfg, &name)?;
-    Ok(format!("Saved config: {}", name))
 }

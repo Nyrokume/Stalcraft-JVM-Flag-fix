@@ -55,6 +55,7 @@ extern "system" {
     fn WaitForSingleObject(hHandle: isize, dwMilliseconds: u32) -> u32;
     fn GetExitCodeProcess(hProcess: isize, lpExitCode: *mut u32) -> i32;
     fn SetProcessPriorityBoost(hProcess: isize, DisablePriorityBoost: i32) -> i32;
+    fn ResumeThread(hThread: isize) -> u32;
 }
 
 #[link(name = "user32")]
@@ -313,18 +314,39 @@ pub fn start_phantom_window() {
 
 // ─── NtCreateUserProcess — аналог Start() из process.go ──────────────────────
 
-/// nt_create_process — точный порт Start() из process.go.
-/// Создаёт процесс через NtCreateUserProcess с PS_ATTRIBUTE_IFEO_SKIP_DEBUGGER.
-pub fn nt_create_process(exe_path: &str, args: &[String]) -> Result<(isize, isize, u32), String> {
-    let abs_path = Path::new(exe_path)
-        .canonicalize()
-        .map_err(|e| format!("resolve {}: {}", exe_path, e))?;
-
-    let mut abs_str = abs_path.to_string_lossy().to_string();
-    // Убираем \\?\ префикс который добавляет canonicalize на Windows
-    if abs_str.starts_with(r"\\?\") {
-        abs_str = abs_str[4..].to_string();
+fn strip_extended_path(s: &str) -> String {
+    if s.starts_with(r"\\?\") {
+        s[4..].to_string()
+    } else {
+        s.to_string()
     }
+}
+
+/// Resolve executable path — canonicalize when possible, else use as given (Go filepath.Abs style).
+fn resolve_exe_path(exe_path: &str) -> Result<String, String> {
+    let raw = Path::new(exe_path);
+    if raw.exists() {
+        if let Ok(c) = raw.canonicalize() {
+            return Ok(strip_extended_path(&c.to_string_lossy()));
+        }
+    }
+    if raw.is_absolute() {
+        return Ok(exe_path.to_string());
+    }
+    if let Ok(cwd) = std::env::current_dir() {
+        let joined = cwd.join(raw);
+        if joined.exists() {
+            if let Ok(c) = joined.canonicalize() {
+                return Ok(strip_extended_path(&c.to_string_lossy()));
+            }
+        }
+    }
+    Err(format!("resolve {}: file not found", exe_path))
+}
+
+/// nt_create_process — порт Start() из process.go.
+pub fn nt_create_process(exe_path: &str, args: &[String]) -> Result<(isize, isize, u32), String> {
+    let abs_str = resolve_exe_path(exe_path)?;
 
     let nt_path = format!(r"\??\{}", abs_str);
     let cmd_line = build_cmd_line(&abs_str, args);
@@ -431,7 +453,10 @@ pub fn nt_create_process(exe_path: &str, args: &[String]) -> Result<(isize, isiz
         unsafe { RtlDestroyProcessParameters(params) };
         return Err(format!("NtCreateUserProcess: NTSTATUS 0x{:08x}", r));
     }
-    unsafe { RtlDestroyProcessParameters(params) };
+    unsafe {
+        RtlDestroyProcessParameters(params);
+        ResumeThread(h_thread);
+    }
 
     let pid = cid.UniqueProcess as u32;
     Ok((h_process, h_thread, pid))
@@ -496,7 +521,6 @@ pub fn cleanup_handles(h_process: isize, h_thread: isize) {
 // Для concurrent вызовов используем ключ в lparam
 
 static mut FOUND_VISIBLE: u32 = 0;
-static mut CURRENT_SEARCH_PID: u32 = 0;
 
 unsafe extern "system" fn enum_windows_proc(hwnd: isize, target_pid: isize) -> i32 {
     let mut pid: u32 = 0;
@@ -516,7 +540,6 @@ fn has_visible_window(pid: u32) -> bool {
     // 2. Между вызовами wait_process есть enough time для завершения callback
     // 3. Это соответствует поведению Go кода (sync.Map)
     unsafe {
-        CURRENT_SEARCH_PID = pid;
         FOUND_VISIBLE = 0;
         EnumWindows(Some(enum_windows_proc), pid as isize);
         FOUND_VISIBLE != 0

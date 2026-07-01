@@ -208,6 +208,42 @@ body {
     -webkit-app-region: no-drag;
 }
 
+.titlebar-lang {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    margin-right: 4px;
+    padding-right: 6px;
+    border-right: 1px solid var(--border-primary);
+}
+
+.lang-btn {
+    min-width: 34px;
+    height: 28px;
+    padding: 0 8px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+
+.lang-btn:hover {
+    color: var(--text-primary);
+    background: var(--bg-panel-hover);
+}
+
+.lang-btn.active {
+    color: var(--accent-primary);
+    border-color: var(--accent-primary);
+    background: rgba(0, 255, 170, 0.08);
+}
+
 .titlebar-btn {
     width: 46px;
     height: var(--titlebar-height);
