@@ -251,7 +251,7 @@ async function runSystemRefresh({ showLoadingSpinner = true } = {}) {
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;')
             .replace(/"/g, '&quot;');
-        cpuInfo.innerHTML = `<div class="hw-main">${esc(info.cpu_name)}</div><div class="hw-sub">${info.cpu_cores} Cores / ${info.cpu_threads} Threads${info.l3_cache_mb > 0 ? ` • L3 ${info.l3_cache_mb} MB` : ''}</div>`;
+        cpuInfo.innerHTML = `<div class="hw-main">${esc(info.cpu_name)}</div><div class="hw-sub">${info.cpu_cores} Cores / ${info.cpu_threads} Threads${info.l3_cache_mb > 0 ? ` • L3 ${info.l3_cache_mb} MB` : ''}${info.has_big_cache ? ' • Big L3' : ''}</div>`;
         gpuInfo.innerHTML = `<div class="hw-main">${esc(info.gpu_name)}</div><div class="hw-sub">Graphics Adapter</div>`;
 
         const usedPct = info.total_ram_gb > 0
@@ -264,9 +264,12 @@ async function runSystemRefresh({ showLoadingSpinner = true } = {}) {
 
         if (memTier) memTier.textContent = `Tier: ${info.mem_tier}`;
         if (memSpeed) {
+            const lp = info.large_pages
+                ? (info.large_page_size_mb > 0 ? ` • Large pages ${info.large_page_size_mb} MB` : ' • Large pages ON')
+                : ' • Large pages off';
             memSpeed.textContent = info.mem_speed_mts > 0
-                ? `${info.mem_speed_mts} MT/s configured`
-                : 'Speed unknown (mid tier fallback)';
+                ? `${info.mem_speed_mts} MT/s${lp}`
+                : `Speed unknown (mid tier fallback)${lp}`;
         }
 
         addLog(`System: ${info.cpu_name}, ${info.total_ram_gb.toFixed(1)}GB RAM, mem=${info.mem_tier}`, 'success');

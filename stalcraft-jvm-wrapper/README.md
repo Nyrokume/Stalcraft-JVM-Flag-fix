@@ -44,8 +44,11 @@ wrapper.exe --status
 
 ```bash
 npm install
-npm run tauri build
+npm run dev          # Tauri + Vite (hardware detection works)
+npm run build:prod   # release exe + installers
 ```
+
+Release artifacts: `src-tauri/target/release/stalart-jvm-wrapper.exe`, `src-tauri/target/release/bundle/`.
 
 ## Requirements
 

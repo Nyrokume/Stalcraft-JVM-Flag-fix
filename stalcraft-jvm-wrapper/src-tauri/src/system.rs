@@ -201,7 +201,11 @@ impl SystemInfo {
             s.push_str(&format!(", L3 {} MB", self.l3_cache_mb));
         }
         if self.large_pages {
-            s.push_str(", large pages available");
+            if self.large_page_size > 0 {
+                s.push_str(&format!(", large pages ({} MB)", self.large_page_size >> 20));
+            } else {
+                s.push_str(", large pages available");
+            }
         }
         if self.mem_speed_mts > 0 {
             s.push_str(&format!(", mem {} MT/s ({})", self.mem_speed_mts, self.mem_tier().as_str()));
@@ -709,4 +713,53 @@ pub fn get_registry_string(key_path: &str, value_name: &str) -> Option<String> {
         .ok()
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn mem_device_speed_reads_configured_clock() {
+        let mut rec = vec![0u8; 0x22];
+        rec[0x0C] = 8;
+        rec[0x0D] = 0; // size != 0
+        rec[0x20] = 0x40;
+        rec[0x21] = 0x06; // 1600 MT/s
+        assert_eq!(mem_device_speed_mts(&rec), Some(1600));
+    }
+
+    #[test]
+    fn mem_tier_slow_at_2933() {
+        let sys = SystemInfo {
+            total_ram: 0,
+            free_ram: 0,
+            cpu_cores: 8,
+            cpu_threads: 16,
+            l3_cache_mb: 32,
+            mem_speed_mts: 2933,
+            large_pages: false,
+            large_page_size: 0,
+            cpu_name: String::new(),
+            gpu_name: String::new(),
+        };
+        assert_eq!(sys.mem_tier(), MemTier::Slow);
+    }
+
+    #[test]
+    fn mem_tier_mid_when_unknown() {
+        let sys = SystemInfo {
+            total_ram: 0,
+            free_ram: 0,
+            cpu_cores: 8,
+            cpu_threads: 16,
+            l3_cache_mb: 32,
+            mem_speed_mts: 0,
+            large_pages: false,
+            large_page_size: 0,
+            cpu_name: String::new(),
+            gpu_name: String::new(),
+        };
+        assert_eq!(sys.mem_tier(), MemTier::Mid);
+    }
 }

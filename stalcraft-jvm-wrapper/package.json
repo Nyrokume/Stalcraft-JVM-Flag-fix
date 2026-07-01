@@ -1,13 +1,13 @@
 {
   "name": "stalart-jvm-wrapper",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "STALART JVM Wrapper — Tauri desktop IFEO JVM tuning",
   "scripts": {
-    "dev": "vite",
+    "dev": "tauri dev",
+    "vite": "vite",
     "build": "vite build",
     "tauri": "tauri",
-    "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build"
+    "build:prod": "tauri build"
   },
   "keywords": [
     "stalart",
