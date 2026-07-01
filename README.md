@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 
 # STALCRAFT JVM Wrapper - Tauri Edition
 <img width="1918" height="854" alt="image" src="https://github.com/user-attachments/assets/681a65ce-e8c9-4836-908a-755e009e903e" />
@@ -307,3 +308,10 @@ wrapper.exe --status       # Check IFEO status
 ## License
 
 MIT
+=======
+﻿# Stalcraft JVM Flag Fix
+
+Tauri wrapper for Stalcraft JVM launch flags. See the app documentation:
+
+- [stalcraft-jvm-wrapper/README.md](stalcraft-jvm-wrapper/README.md)
+>>>>>>> 25e04c1 (Refactor for Go launcher parity and slim GUI.)

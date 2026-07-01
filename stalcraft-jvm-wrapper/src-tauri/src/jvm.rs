@@ -1,9 +1,6 @@
-// jvm.rs — полный порт flags.go + filter.go
-// Превращает Config в JVM флаги и фильтрует конфликтующие аргументы лаунчера.
+// jvm.rs — порт flags.go + filter.go
 
 use crate::config::Config;
-
-// ─── flags() — точный порт Flags() из flags.go ───────────────────────────────
 
 pub fn flags(cfg: &Config) -> Vec<String> {
     let cc = if cfg.reserved_code_cache_size_mb == 0 {
@@ -12,12 +9,9 @@ pub fn flags(cfg: &Config) -> Vec<String> {
         cfg.reserved_code_cache_size_mb
     };
 
-    // Xms = min(heap, 4) — STALCRAFT peak working set ~4 GB
-    let xms = cfg.heap_size_gb.min(4);
-
     let mut f: Vec<String> = vec![
         format!("-Xmx{}g", cfg.heap_size_gb),
-        format!("-Xms{}g", xms),
+        format!("-Xms{}g", cfg.heap_size_gb),
         format!("-XX:MetaspaceSize={}m", cfg.metaspace_mb),
         format!("-XX:MaxMetaspaceSize={}m", cfg.metaspace_mb),
         "-XX:+UseG1GC".to_string(),
@@ -28,7 +22,10 @@ pub fn flags(cfg: &Config) -> Vec<String> {
         format!("-XX:G1MaxNewSizePercent={}", cfg.g1_max_new_size_percent),
         format!("-XX:G1ReservePercent={}", cfg.g1_reserve_percent),
         format!("-XX:G1HeapWastePercent={}", cfg.g1_heap_waste_percent),
-        format!("-XX:G1MixedGCCountTarget={}", cfg.g1_mixed_gc_count_target),
+        format!(
+            "-XX:G1MixedGCCountTarget={}",
+            cfg.g1_mixed_gc_count_target
+        ),
         "-XX:+G1UseAdaptiveIHOP".to_string(),
         format!(
             "-XX:InitiatingHeapOccupancyPercent={}",
@@ -132,15 +129,8 @@ pub fn flags(cfg: &Config) -> Vec<String> {
     }
     if cfg.use_large_pages {
         f.push("-XX:+UseLargePages".to_string());
-        if cfg.large_page_size_mb > 0 {
-            f.push(format!(
-                "-XX:LargePageSizeInBytes={}m",
-                cfg.large_page_size_mb
-            ));
-        }
     }
 
-    // reflection fast path — emit для любого значения (включая 0 и отрицательные)
     f.push(format!(
         "-Dsun.reflect.inflationThreshold={}",
         cfg.reflection_inflation_threshold
@@ -171,9 +161,6 @@ pub fn flags(cfg: &Config) -> Vec<String> {
     f
 }
 
-// ─── FilterArgs — точный порт FilterArgs() из filter.go ──────────────────────
-
-/// Полный набор exact-совпадений для удаления (из filter.go)
 static EXACT_REMOVE: &[&str] = &[
     "-XX:-PrintCommandLineFlags",
     "-XX:+UseG1GC",
@@ -189,9 +176,7 @@ static EXACT_REMOVE: &[&str] = &[
     "-XX:+UseXMMForArrayCopy",
     "-XX:+UseFPUForSpilling",
     "-XX:-DontCompileHugeMethods",
-    "-XX:+DontCompileHugeMethods",
     "-XX:+AlwaysPreTouch",
-    "-XX:-AlwaysPreTouch",
     "-XX:+ParallelRefProcEnabled",
     "-XX:+DisableExplicitGC",
     "-XX:+G1UseAdaptiveIHOP",
@@ -202,10 +187,8 @@ static EXACT_REMOVE: &[&str] = &[
     "-XX:-UseCounterDecay",
     "-XX:+UseLargePages",
     "-XX:-UseLargePages",
-    "-XX:+UseCompressedClassPointerCompression",
 ];
 
-/// Полный набор prefix-совпадений для удаления (из filter.go)
 static PREFIX_REMOVE: &[&str] = &[
     "-XX:MaxGCPauseMillis=",
     "-XX:MetaspaceSize=",
@@ -243,35 +226,19 @@ static PREFIX_REMOVE: &[&str] = &[
     "-XX:AutoBoxCacheMax=",
     "-XX:ThreadPriorityPolicy=",
     "-XX:CompileThresholdScaling=",
-    "-XX:InitialHeapSize=",
-    "-XX:MaxHeapSize=",
-    "-XX:MinHeapDeltaBytes=",
-    "-XX:SoftRefLRUPolicyMSPerMB=",
-    "-XX:TieredCompilation=",
-    "-XX:CICompilerCount=",
-    "-XX:AutoBoxCacheMax=",
     "-Dsun.reflect.inflationThreshold=",
-    "-Dsun.nio.maxCachedBufferSize=",
     "-Xms",
     "-Xmx",
-    "-Xbootclasspath",
-    "-Xbootclasspath/a",
-    "-Xbootclasspath/p",
 ];
 
 fn should_remove(arg: &str) -> bool {
-    if EXACT_REMOVE.contains(&arg) {
-        return true;
-    }
-    PREFIX_REMOVE.iter().any(|p| arg.starts_with(p))
+    EXACT_REMOVE.contains(&arg) || PREFIX_REMOVE.iter().any(|p| arg.starts_with(p))
 }
 
-/// splitArgs() — разбивает аргументы на JVM флаги, main class, app args
 fn split_args(args: &[String]) -> (Vec<String>, String, Vec<String>) {
     let mut jvm = Vec::new();
     let mut main_class = String::new();
     let mut app = Vec::new();
-
     let mut i = 0;
     while i < args.len() {
         let a = &args[i];
@@ -289,7 +256,6 @@ fn split_args(args: &[String]) -> (Vec<String>, String, Vec<String>) {
             i += 1;
             continue;
         }
-        // Это main class
         main_class = a.clone();
         if i + 1 < args.len() {
             app = args[i + 1..].to_vec();
@@ -299,13 +265,9 @@ fn split_args(args: &[String]) -> (Vec<String>, String, Vec<String>) {
     (jvm, main_class, app)
 }
 
-/// FilterArgs — точный порт FilterArgs() из filter.go
-/// Убирает конфликтующие флаги лаунчера, вставляет наши оптимизированные.
 pub fn filter_args(orig: &[String], injected: &[String]) -> Vec<String> {
     let (jvm_args, main_class, app) = split_args(orig);
-
     let filtered: Vec<String> = jvm_args.into_iter().filter(|a| !should_remove(a)).collect();
-
     let mut result = Vec::with_capacity(filtered.len() + injected.len() + 1 + app.len());
     result.extend(filtered);
     result.extend_from_slice(injected);
@@ -314,4 +276,23 @@ pub fn filter_args(orig: &[String], injected: &[String]) -> Vec<String> {
     }
     result.extend(app);
     result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn filter_strips_heap_flags() {
+        let orig = vec![
+            "-Xmx2g".to_string(),
+            "-Xms1g".to_string(),
+            "Main".to_string(),
+        ];
+        let injected = vec!["-Xmx6g".to_string()];
+        let out = filter_args(&orig, &injected);
+        assert!(out.contains(&"-Xmx6g".to_string()));
+        assert!(!out.iter().any(|a| a == "-Xmx2g"));
+        assert!(out.contains(&"Main".to_string()));
+    }
 }

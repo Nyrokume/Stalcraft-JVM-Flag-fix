@@ -1,7 +1,7 @@
 {
-  "name": "stalcraft-jvm-wrapper",
+  "name": "stalart-jvm-wrapper",
   "version": "1.0.0",
-  "description": "JVM Optimization Wrapper for STALCRAFT - Tauri Edition",
+  "description": "STALART JVM Wrapper — Tauri desktop IFEO JVM tuning",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -10,12 +10,11 @@
     "tauri:build": "tauri build"
   },
   "keywords": [
-    "stalcraft",
+    "stalart",
     "jvm",
     "optimization",
     "tauri"
   ],
-  "author": "nyrok",
   "license": "MIT",
   "type": "module",
   "devDependencies": {
@@ -24,7 +23,6 @@
   },
   "dependencies": {
     "@tauri-apps/api": "^2.10.1",
-    "@tauri-apps/plugin-dialog": "^2.2.1",
-    "@tauri-apps/plugin-store": "^2.2.0"
+    "@tauri-apps/plugin-dialog": "^2.2.1"
   }
 }

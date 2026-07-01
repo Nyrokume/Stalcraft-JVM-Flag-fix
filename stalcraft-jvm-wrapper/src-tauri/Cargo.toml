@@ -1,8 +1,8 @@
 [package]
-name = "stalcraft-jvm-wrapper"
+name = "stalart-jvm-wrapper"
 version = "1.0.0"
-description = "JVM Optimization Wrapper for STALCRAFT"
-authors = ["nyrok"]
+description = "STALART JVM Wrapper — IFEO JVM tuning for Windows"
+authors = []
 license = "MIT"
 repository = ""
 edition = "2021"
@@ -12,9 +12,7 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 tauri = { version = "2", features = [] }
-tauri-plugin-shell = "2"
 tauri-plugin-dialog = "2"
-tauri-plugin-store = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 windows-sys = { version = "0.59", features = [

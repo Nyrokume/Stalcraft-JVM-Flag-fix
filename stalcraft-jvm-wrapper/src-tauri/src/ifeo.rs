@@ -1,11 +1,10 @@
-// ifeo.rs — полный порт installer.go
-// IFEO (Image File Execution Options) — установка/удаление/статус перехвата.
-// Debugger = "\"<path to service.exe>\"" как в setDebugger() из Go.
+// ifeo.rs — порт installer.go (stalart* + stalcraft* client targets)
 
 use std::ffi::OsStr;
 use std::os::windows::ffi::OsStrExt;
+use std::path::PathBuf;
 
-// ─── Windows Registry API ─────────────────────────────────────────────────────
+use crate::log;
 
 #[link(name = "advapi32")]
 extern "system" {
@@ -44,7 +43,6 @@ extern "system" {
         lpcbData: *mut u32,
     ) -> i32;
     fn RegDeleteValueW(hKey: isize, lpValueName: *const u16) -> i32;
-    fn RegFlushKey(hKey: isize) -> i32;
     fn RegCloseKey(hKey: isize) -> i32;
 }
 
@@ -52,8 +50,6 @@ extern "system" {
 extern "system" {
     fn IsUserAnAdmin() -> i32;
 }
-
-// ─── Константы ────────────────────────────────────────────────────────────────
 
 const HKEY_LOCAL_MACHINE: isize = -2147483648i64 as isize;
 const KEY_ALL_ACCESS: u32 = 0xF003F;
@@ -63,45 +59,70 @@ const KEY_WOW64_64KEY: u32 = 0x0100;
 const KEY_READ_WRITE: u32 = KEY_SET_VALUE | KEY_WOW64_64KEY;
 const KEY_READ_64: u32 = KEY_QUERY_VALUE | KEY_WOW64_64KEY;
 const REG_SZ: u32 = 1;
+const ERROR_SUCCESS: i32 = 0;
+const ERROR_FILE_NOT_FOUND: i32 = 2;
 
 const IFEO_PATH: &str =
     r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options";
 
-/// Таргеты — точный аналог Targets из installer.go
-const TARGETS: &[&str] = &["stalcraft.exe", "stalcraftw.exe"];
+pub const IFEO_TARGETS: &[&str] = &[
+    "stalart.exe",
+    "stalartw.exe",
+    "stalcraft.exe",
+    "stalcraftw.exe",
+];
 
-// ─── Утилиты ─────────────────────────────────────────────────────────────────
+fn path_ends_with_executable(path_lower: &str, name: &str) -> bool {
+    if path_lower.len() < name.len() || !path_lower.ends_with(name) {
+        return false;
+    }
+    if path_lower.len() == name.len() {
+        return true;
+    }
+    matches!(
+        path_lower.as_bytes()[path_lower.len() - name.len() - 1],
+        b'\\' | b'/'
+    )
+}
+
+pub fn is_ifeo_debugger_invocation(image_path: &str) -> bool {
+    let lower = image_path.to_lowercase();
+    IFEO_TARGETS
+        .iter()
+        .any(|&exe| path_ends_with_executable(&lower, exe))
+}
+
+#[derive(Debug, Clone)]
+pub struct IfeoEntry {
+    pub target: String,
+    pub installed: bool,
+    pub debugger: String,
+}
 
 fn to_wide(s: &str) -> Vec<u16> {
     OsStr::new(s).encode_wide().chain(Some(0)).collect()
 }
 
-fn is_admin() -> bool {
-    unsafe { IsUserAnAdmin() != 0 }
-}
-
-/// resolveService — путь к текущему exe (Tauri single exe acting as both CLI and service)
-/// В режиме Tauri один exe работает и как GUI, и как debugger (service).
-fn resolve_service() -> Result<String, String> {
+fn resolve_wrapper() -> Result<PathBuf, String> {
     let self_path = std::env::current_exe().map_err(|e| format!("resolve self: {}", e))?;
-    Ok(self_path.to_string_lossy().to_string())
+    if !self_path.is_file() {
+        return Err("wrapper executable path invalid".to_string());
+    }
+    Ok(self_path)
 }
 
-// ─── setDebugger — точный порт setDebugger() из installer.go ─────────────────
-
-fn set_debugger(target: &str, debugger: &str) -> Result<(), String> {
-    let key_path = format!("{}\\{}", IFEO_PATH, target);
-    let wide_path = to_wide(&key_path);
-    // В Go: key.SetStringValue("Debugger", `"` + debugger + `"`)
-    // Т.е. значение обёрнуто в кавычки
-    let debugger_quoted = format!("\"{}\"", debugger);
-    let wide_debugger = to_wide(&debugger_quoted);
+fn set_debugger(target: &str, debugger: &PathBuf) -> Result<(), String> {
+    let subkey = format!(r"{}\{}", IFEO_PATH, target);
+    let wide_subkey = to_wide(&subkey);
+    let wide_debugger = to_wide("Debugger");
+    let debugger_str = format!("\"{}\"", debugger.display());
+    let wide_value = to_wide(&debugger_str);
 
     let mut hkey: isize = 0;
     let r = unsafe {
         RegCreateKeyExW(
             HKEY_LOCAL_MACHINE,
-            wide_path.as_ptr(),
+            wide_subkey.as_ptr(),
             0,
             std::ptr::null(),
             0,
@@ -111,209 +132,211 @@ fn set_debugger(target: &str, debugger: &str) -> Result<(), String> {
             std::ptr::null_mut(),
         )
     };
-    if r != 0 {
-        return Err(format!("create IFEO key for {} (error: {})", target, r));
+    if r != ERROR_SUCCESS {
+        return Err(format!("create IFEO key for {}: {}", target, r));
     }
 
-    let wide_value = to_wide("Debugger");
-    // Данные: REG_SZ без нулевого терминатора (как Go: len-1)
-    let data_bytes = unsafe {
-        std::slice::from_raw_parts(
-            wide_debugger.as_ptr() as *const u8,
-            (wide_debugger.len() - 1) * 2,
-        )
+    let data = unsafe {
+        std::slice::from_raw_parts(wide_value.as_ptr() as *const u8, wide_value.len() * 2)
     };
     let r = unsafe {
         RegSetValueExW(
             hkey,
-            wide_value.as_ptr(),
+            wide_debugger.as_ptr(),
             0,
             REG_SZ,
-            data_bytes.as_ptr(),
-            data_bytes.len() as u32,
+            data.as_ptr(),
+            data.len() as u32,
         )
     };
-    unsafe {
-        RegFlushKey(hkey);
-        RegCloseKey(hkey);
-    }
-
-    if r != 0 {
-        return Err(format!("set Debugger for {} (error: {})", target, r));
+    unsafe { RegCloseKey(hkey) };
+    if r != ERROR_SUCCESS {
+        return Err(format!("set Debugger for {}: {}", target, r));
     }
     Ok(())
 }
 
-// ─── clearDebugger — порт clearDebugger() из installer.go ────────────────────
-
 fn clear_debugger(target: &str) -> Result<(), String> {
-    let key_path = format!("{}\\{}", IFEO_PATH, target);
-    let wide_path = to_wide(&key_path);
+    let subkey = format!(r"{}\{}", IFEO_PATH, target);
+    let wide_subkey = to_wide(&subkey);
+    let wide_debugger = to_wide("Debugger");
 
     let mut hkey: isize = 0;
-    let open = unsafe {
+    let r = unsafe {
         RegOpenKeyExW(
             HKEY_LOCAL_MACHINE,
-            wide_path.as_ptr(),
+            wide_subkey.as_ptr(),
             0,
             KEY_READ_WRITE,
             &mut hkey,
         )
     };
-
-    if open != 0 {
-        return Err(format!("open IFEO key for {}: {}", target, open));
+    if r != ERROR_SUCCESS {
+        return Err(format!("open IFEO key for {}: {}", target, r));
     }
 
-    let wide_value = to_wide("Debugger");
-    let del = unsafe { RegDeleteValueW(hkey, wide_value.as_ptr()) };
-    if del == 0 {
-        unsafe { RegFlushKey(hkey) };
-    }
+    let r = unsafe { RegDeleteValueW(hkey, wide_debugger.as_ptr()) };
     unsafe { RegCloseKey(hkey) };
-
-    if del != 0 {
-        return Err(format!("delete Debugger for {}: {}", target, del));
+    if r != ERROR_SUCCESS && r != ERROR_FILE_NOT_FOUND {
+        return Err(format!("delete Debugger for {}: {}", target, r));
     }
     Ok(())
 }
 
-// ─── Публичные функции ────────────────────────────────────────────────────────
+fn status_for(target: &str) -> IfeoEntry {
+    let subkey = format!(r"{}\{}", IFEO_PATH, target);
+    let wide_subkey = to_wide(&subkey);
+    let wide_debugger = to_wide("Debugger");
 
-/// install() — точный порт Install() из installer.go
-pub fn install() -> Result<String, String> {
-    if !is_admin() {
-        return Err("Administrator privileges required. Please run as Administrator.".to_string());
+    let mut hkey: isize = 0;
+    let r = unsafe {
+        RegOpenKeyExW(
+            HKEY_LOCAL_MACHINE,
+            wide_subkey.as_ptr(),
+            0,
+            KEY_READ_64,
+            &mut hkey,
+        )
+    };
+    if r != ERROR_SUCCESS {
+        return IfeoEntry {
+            target: target.to_string(),
+            installed: false,
+            debugger: String::new(),
+        };
     }
 
-    let service = resolve_service()?;
-
-    for target in TARGETS {
-        set_debugger(target, &service)
-            .map_err(|e| format!("installer target failed ({}): {}", target, e))?;
-        eprintln!("[installer] set {} -> {}", target, service);
+    let mut buf_len: u32 = 0;
+    let q = unsafe {
+        RegQueryValueExW(
+            hkey,
+            wide_debugger.as_ptr(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            &mut buf_len,
+        )
+    };
+    if q != ERROR_SUCCESS || buf_len == 0 {
+        unsafe { RegCloseKey(hkey) };
+        return IfeoEntry {
+            target: target.to_string(),
+            installed: false,
+            debugger: String::new(),
+        };
     }
-    eprintln!("[installer] done");
-    Ok(format!(
-        "IFEO registered for all targets. Debugger = \"{}\"",
-        service
-    ))
+
+    let mut buf = vec![0u8; buf_len as usize + 2];
+    let mut actual = buf_len;
+    let q = unsafe {
+        RegQueryValueExW(
+            hkey,
+            wide_debugger.as_ptr(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            buf.as_mut_ptr(),
+            &mut actual,
+        )
+    };
+    unsafe { RegCloseKey(hkey) };
+    if q != ERROR_SUCCESS {
+        return IfeoEntry {
+            target: target.to_string(),
+            installed: false,
+            debugger: String::new(),
+        };
+    }
+
+    let wchars = actual as usize / 2;
+    let wide_slice: Vec<u16> = (0..wchars)
+        .map(|i| u16::from_le_bytes([buf[i * 2], buf[i * 2 + 1]]))
+        .collect();
+    let end = wide_slice.iter().position(|&c| c == 0).unwrap_or(wchars);
+    let val = String::from_utf16(&wide_slice[..end]).unwrap_or_default();
+
+    IfeoEntry {
+        target: target.to_string(),
+        installed: !val.is_empty(),
+        debugger: val,
+    }
 }
 
-/// uninstall() — точный порт Uninstall() из installer.go
+pub fn is_admin() -> bool {
+    unsafe { IsUserAnAdmin() != 0 }
+}
+
+/// Install IFEO for all client targets. `override_path` ignored (kept for CLI compat).
+pub fn install(_override_path: Option<&str>) -> Result<String, String> {
+    if !is_admin() {
+        return Err("Administrator privileges required for IFEO install".to_string());
+    }
+
+    let wrapper = resolve_wrapper()?;
+    log::append_wrapper_log_line(&format!(
+        "IFEO install_start targets={}",
+        IFEO_TARGETS.len()
+    ));
+
+    for target in IFEO_TARGETS {
+        set_debugger(target, &wrapper)?;
+        log::append_wrapper_log_line(&format!(
+            "IFEO target_set target={} debugger={}",
+            target,
+            log::redact_path(&wrapper.to_string_lossy())
+        ));
+    }
+
+    let msg = format!(
+        "IFEO installed for {} targets. Debugger = \"{}\"",
+        IFEO_TARGETS.len(),
+        wrapper.display()
+    );
+    log::append_wrapper_log_line("IFEO install_ok");
+    Ok(msg)
+}
+
 pub fn uninstall() -> Result<String, String> {
     if !is_admin() {
-        return Err("Administrator privileges required. Please run as Administrator.".to_string());
+        return Err("Administrator privileges required for IFEO uninstall".to_string());
     }
 
-    let mut results = Vec::new();
-    let mut any_removed = false;
-    let mut errs = Vec::new();
-
-    for target in TARGETS {
-        match clear_debugger(target) {
-            Ok(()) => {
-                results.push(format!("IFEO removed for {}", target));
-                any_removed = true;
-                eprintln!("[installer] cleared {}", target);
-            }
-            Err(e) => {
-                results.push(format!("{}: not installed or failed ({})", target, e));
-                errs.push(e);
-            }
+    let mut errors = Vec::new();
+    for target in IFEO_TARGETS {
+        if let Err(e) = clear_debugger(target) {
+            errors.push(format!("{}: {}", target, e));
         }
     }
 
-    if !errs.is_empty() && !any_removed {
-        return Ok("Not installed".to_string());
+    log::append_wrapper_log_line(&format!(
+        "IFEO uninstall_done errors={}",
+        errors.len()
+    ));
+
+    if errors.is_empty() {
+        Ok("IFEO uninstalled for all targets.".to_string())
+    } else {
+        Err(errors.join("; "))
     }
-    Ok(results.join("\n"))
 }
 
-/// status() — точный порт Status() из installer.go
 pub fn status() -> Result<String, String> {
-    let mut results = Vec::new();
-    let mut found = false;
-
-    for target in TARGETS {
-        let key_path = format!("{}\\{}", IFEO_PATH, target);
-        let wide_path = to_wide(&key_path);
-        let wide_value = to_wide("Debugger");
-
-        let mut hkey: isize = 0;
-        let r = unsafe {
-            RegOpenKeyExW(
-                HKEY_LOCAL_MACHINE,
-                wide_path.as_ptr(),
-                0,
-                KEY_READ_64,
-                &mut hkey,
-            )
-        };
-        if r != 0 {
-            results.push(format!("{}: not installed", target));
-            continue;
-        }
-
-        let mut buf_len: u32 = 0;
-        let q = unsafe {
-            RegQueryValueExW(
-                hkey,
-                wide_value.as_ptr(),
-                std::ptr::null_mut(),
-                std::ptr::null_mut(),
-                std::ptr::null_mut(),
-                &mut buf_len,
-            )
-        };
-        if q != 0 || buf_len == 0 {
-            unsafe { RegCloseKey(hkey) };
-            results.push(format!("{}: not installed", target));
-            continue;
-        }
-
-        let mut buf = vec![0u8; buf_len as usize + 2];
-        let mut actual = buf_len;
-        let q = unsafe {
-            RegQueryValueExW(
-                hkey,
-                wide_value.as_ptr(),
-                std::ptr::null_mut(),
-                std::ptr::null_mut(),
-                buf.as_mut_ptr(),
-                &mut actual,
-            )
-        };
-        unsafe { RegCloseKey(hkey) };
-
-        if q != 0 {
-            results.push(format!("{}: not installed", target));
-            continue;
-        }
-
-        let wchars = actual as usize / 2;
-        let wide_slice: Vec<u16> = (0..wchars)
-            .map(|i| u16::from_le_bytes([buf[i * 2], buf[i * 2 + 1]]))
-            .collect();
-        let end = wide_slice.iter().position(|&c| c == 0).unwrap_or(wchars);
-        match String::from_utf16(&wide_slice[..end]) {
-            Ok(val) => {
-                let val = val.trim().to_string();
-                if val.is_empty() {
-                    results.push(format!("{}: not installed", target));
-                } else {
-                    results.push(format!("{} -> {}", target, val));
-                    found = true;
-                }
-            }
-            Err(_) => {
-                results.push(format!("{}: not installed", target));
-            }
+    let entries: Vec<IfeoEntry> = IFEO_TARGETS.iter().map(|t| status_for(t)).collect();
+    let mut lines = Vec::new();
+    for e in &entries {
+        if e.installed {
+            lines.push(format!(
+                "{}: installed (Debugger={})",
+                e.target,
+                log::redact_path(&e.debugger)
+            ));
+        } else {
+            lines.push(format!("{}: not installed", e.target));
         }
     }
+    Ok(lines.join("\n"))
+}
 
-    if !found {
-        results.push("Not installed".to_string());
-    }
-    Ok(results.join("\n"))
+#[allow(dead_code)]
+pub fn status_entries() -> Vec<IfeoEntry> {
+    IFEO_TARGETS.iter().map(|t| status_for(t)).collect()
 }

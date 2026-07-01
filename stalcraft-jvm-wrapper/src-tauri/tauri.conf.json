@@ -1,8 +1,8 @@
 {
   "$schema": "https://raw.githubusercontent.com/nicklasgossman/tauri/main/crates/tauri-config-schema/schema.json",
-  "productName": "STALCRAFT JVM Wrapper",
+  "productName": "STALART JVM Wrapper",
   "version": "1.0.0",
-  "identifier": "com.nyrok.stalcraft-jvm-wrapper",
+  "identifier": "com.stalart.jvm-wrapper",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:1420",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "STALCRAFT JVM Wrapper",
+        "title": "STALART JVM Wrapper",
         "width": 1350,
         "height": 1030,
         "minWidth": 900,

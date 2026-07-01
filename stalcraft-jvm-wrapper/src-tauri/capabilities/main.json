@@ -4,7 +4,6 @@
   "windows": ["main"],
   "permissions": [
     "core:default",
-    "shell:default",
     "core:window:default",
     "core:window:allow-set-title",
     "core:window:allow-minimize",
@@ -18,7 +17,6 @@
     "dialog:allow-save",
     "dialog:allow-message",
     "dialog:allow-ask",
-    "dialog:allow-confirm",
-    "store:default"
+    "dialog:allow-confirm"
   ]
 }

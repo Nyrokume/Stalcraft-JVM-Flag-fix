@@ -1,0 +1,26 @@
+﻿# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+target/
+
+# Tauri / Rust
+**/*.rs.bk
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Env / secrets
+.env
+.env.*

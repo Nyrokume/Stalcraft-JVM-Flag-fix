@@ -1,16 +1,16 @@
-// main.js — полный функционал включая управление конфигами
+// main.js — slim GUI (Go cli parity)
+
 let invoke;
 let isTauri = false;
 let currentWindow;
 
-let refreshBtn, installBtn, uninstallBtn, verifyBtn;
-let browseBtn, browseDirBtn, gameDir, targetPath, ifeoResult;
+let refreshBtn, installBtn, uninstallBtn, verifyBtn, ifeoResult;
 let logContainer, currentTimeEl;
 let cpuInfo, gpuInfo, ramFill, ramTotal, ramAvailable, heapSize, ifeoStatus;
+let memTier, memSpeed;
 let btnMinimize, btnMaximize, btnClose;
 let btnMinimizeLoading, btnMaximizeLoading, btnCloseLoading;
 let loadingScreen, loadingProgress, loadingStatus;
-// config UI
 let configSelect, configActiveLabel, regenerateConfigBtn, selectConfigBtn;
 
 async function initTauriAPI() {
@@ -34,10 +34,6 @@ function initElements() {
     installBtn = document.getElementById('install-btn');
     uninstallBtn = document.getElementById('uninstall-btn');
     verifyBtn = document.getElementById('verify-btn');
-    browseBtn = document.getElementById('browse-btn');
-    browseDirBtn = document.getElementById('browse-dir-btn');
-    gameDir = document.getElementById('game-dir');
-    targetPath = document.getElementById('target-path');
     ifeoResult = document.getElementById('ifeo-result');
     logContainer = document.getElementById('log-container');
     currentTimeEl = document.getElementById('current-time');
@@ -47,6 +43,8 @@ function initElements() {
     ramTotal = document.getElementById('ram-total');
     ramAvailable = document.getElementById('ram-available');
     heapSize = document.getElementById('heap-size');
+    memTier = document.getElementById('mem-tier');
+    memSpeed = document.getElementById('mem-speed');
     ifeoStatus = document.getElementById('ifeo-status');
     btnMinimize = document.getElementById('btn-minimize');
     btnMaximize = document.getElementById('btn-maximize');
@@ -74,7 +72,7 @@ function setupWindowControls(minimizeBtn, maximizeBtn, closeBtn) {
 }
 
 const loadingMessages = [
-    'Detecting hardware...', 'Analyzing CPU configuration...', 'Scanning memory modules...',
+    'Detecting hardware...', 'Reading SMBIOS memory speed...', 'Scanning memory modules...',
     'Detecting L3 cache size...', 'Calculating optimal JVM parameters...',
     'Loading config profiles...', 'Preparing interface...', 'Almost ready...'
 ];
@@ -115,11 +113,50 @@ function getTimestamp() {
     return `[${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}]`;
 }
 
+function isIfeoStatusActive(statusText) {
+    const lines = (statusText || '').split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
+    if (lines.length === 0) return false;
+    return !lines.some((line) => /: not installed$/i.test(line));
+}
+
+function logIfeoRegistryLines(statusText, heading) {
+    const t = (statusText || '').trim();
+    if (!t) return;
+    addLog(heading, 'info');
+    for (const line of t.split(/\r?\n/)) {
+        if (line.trim()) addLog(`  ${line.trim()}`, 'info');
+    }
+}
+
+async function pullWrapperLogToUi(maxLines = 280) {
+    if (!isTauri) return;
+    try {
+        const tail = await invoke('read_wrapper_log_tail', { maxLines });
+        const text = tail != null ? String(tail).trim() : '';
+        if (!text) return;
+        addLog('── logs/wrapper.log (tail) ──', 'info');
+        for (const line of text.split(/\r?\n/)) {
+            if (line.trim()) addLog(line.trim(), 'info');
+        }
+    } catch (_) {}
+}
+
 function addLog(message, type = '') {
     if (!logContainer) return;
     const entry = document.createElement('div');
     entry.className = 'log-entry';
-    entry.innerHTML = `<span class="log-time">${getTimestamp()}</span><span class="log-arrow">></span><span class="log-text ${type}">${message}</span>`;
+    const timeSpan = document.createElement('span');
+    timeSpan.className = 'log-time';
+    timeSpan.textContent = getTimestamp();
+    const arrow = document.createElement('span');
+    arrow.className = 'log-arrow';
+    arrow.textContent = '>';
+    const textSpan = document.createElement('span');
+    textSpan.className = type ? `log-text ${type}` : 'log-text';
+    textSpan.textContent = message;
+    entry.appendChild(timeSpan);
+    entry.appendChild(arrow);
+    entry.appendChild(textSpan);
     logContainer.appendChild(entry);
     logContainer.scrollTop = logContainer.scrollHeight;
 }
@@ -138,19 +175,6 @@ function setRefreshLoading(loading) {
     loading ? (refreshBtn.classList.add('spinning'), refreshBtn.disabled = true)
              : (refreshBtn.classList.remove('spinning'), refreshBtn.disabled = false);
 }
-
-// ─── Config management ────────────────────────────────────────────────────────
-
-const PRESET_STEM_BY_ID = {
-    balanced: 'preset_balanced',
-    latency: 'preset_latency',
-    throughput: 'preset_throughput',
-    nursery: 'preset_nursery',
-    conservative: 'preset_conservative',
-    low_ram: 'preset_low_ram',
-    streaming: 'preset_streaming',
-    power: 'preset_power',
-};
 
 function setConfigEditorError(msg) {
     const el = document.getElementById('config-editor-error');
@@ -173,21 +197,6 @@ function parseConfigEditorJson() {
         return raw.config;
     }
     return raw;
-}
-
-function updatePresetChipActive(activeName) {
-    const grid = document.getElementById('config-preset-grid');
-    if (!grid) return;
-    for (const chip of grid.querySelectorAll('.config-preset-chip')) {
-        const stem = PRESET_STEM_BY_ID[chip.dataset.preset];
-        chip.classList.toggle('active', Boolean(stem && activeName === stem));
-    }
-}
-
-function setPresetChipsDisabled(disabled) {
-    document.querySelectorAll('.config-preset-chip').forEach((btn) => {
-        btn.disabled = disabled;
-    });
 }
 
 async function syncHeapDisplay() {
@@ -225,9 +234,51 @@ async function refreshConfigList() {
                 configActiveLabel.className = 'config-active-label';
             }
         }
-        updatePresetChipActive(result.active);
     } catch (e) {
         console.error('Failed to load config list:', e);
+    }
+}
+
+async function runSystemRefresh({ showLoadingSpinner = true } = {}) {
+    if (!isTauri || !refreshBtn) return;
+    if (showLoadingSpinner) setRefreshLoading(true);
+    addLog('Detecting system hardware...', 'info');
+    try {
+        const info = await invoke('get_system_info');
+
+        const esc = (s) => String(s)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+        cpuInfo.innerHTML = `<div class="hw-main">${esc(info.cpu_name)}</div><div class="hw-sub">${info.cpu_cores} Cores / ${info.cpu_threads} Threads${info.l3_cache_mb > 0 ? ` • L3 ${info.l3_cache_mb} MB` : ''}</div>`;
+        gpuInfo.innerHTML = `<div class="hw-main">${esc(info.gpu_name)}</div><div class="hw-sub">Graphics Adapter</div>`;
+
+        const usedPct = info.total_ram_gb > 0
+            ? ((info.total_ram_gb - info.free_ram_gb) / info.total_ram_gb * 100).toFixed(0)
+            : '0';
+        ramFill.style.width = usedPct + '%';
+        ramTotal.textContent = info.total_ram_gb.toFixed(2) + ' GB';
+        ramAvailable.textContent = info.free_ram_gb.toFixed(2) + ' GB Available';
+        heapSize.textContent = (info.suggested_heap_gb * 1024) + ' MB';
+
+        if (memTier) memTier.textContent = `Tier: ${info.mem_tier}`;
+        if (memSpeed) {
+            memSpeed.textContent = info.mem_speed_mts > 0
+                ? `${info.mem_speed_mts} MT/s configured`
+                : 'Speed unknown (mid tier fallback)';
+        }
+
+        addLog(`System: ${info.cpu_name}, ${info.total_ram_gb.toFixed(1)}GB RAM, mem=${info.mem_tier}`, 'success');
+        addLog(`Heap: ${info.suggested_heap_gb}GB, config: ${info.active_config || 'default'}`, 'info');
+        if (info.large_pages) addLog('Large pages: available', 'success');
+
+        await refreshConfigList();
+        await pullWrapperLogToUi();
+    } catch (e) {
+        addLog(`System detection failed: ${e}`, 'error');
+    } finally {
+        if (showLoadingSpinner) setRefreshLoading(false);
     }
 }
 
@@ -235,38 +286,11 @@ function setupEventListeners() {
     setupWindowControls(btnMinimize, btnMaximize, btnClose);
     setupWindowControls(btnMinimizeLoading, btnMaximizeLoading, btnCloseLoading);
 
-    // ─── System refresh ───────────────────────────────────────────────────────
-    refreshBtn.addEventListener('click', async () => {
-        setRefreshLoading(true);
-        addLog('Detecting system hardware...', 'info');
-        try {
-            const info = await invoke('get_system_info');
+    refreshBtn.addEventListener('click', () => runSystemRefresh({ showLoadingSpinner: true }));
 
-            cpuInfo.innerHTML = `<div class="hw-main">${info.cpu_name}</div><div class="hw-sub">${info.cpu_cores} Cores / ${info.cpu_threads} Threads${info.l3_cache_mb > 0 ? ` • L3 ${info.l3_cache_mb} MB` : ''}${info.has_big_cache ? ' • X3D' : ''}</div>`;
-            gpuInfo.innerHTML = `<div class="hw-main">${info.gpu_name}</div><div class="hw-sub">Graphics Adapter</div>`;
-
-            const usedPct = ((info.total_ram_gb - info.free_ram_gb) / info.total_ram_gb * 100).toFixed(0);
-            ramFill.style.width = usedPct + '%';
-            ramTotal.textContent = info.total_ram_gb.toFixed(2) + ' GB';
-            ramAvailable.textContent = info.free_ram_gb.toFixed(2) + ' GB Available';
-            heapSize.textContent = (info.suggested_heap_gb * 1024) + ' MB';
-
-            addLog(`System: ${info.cpu_name}, ${info.total_ram_gb.toFixed(1)}GB RAM, L3=${info.l3_cache_mb}MB${info.has_big_cache ? ' (X3D)' : ''}`, 'success');
-            addLog(`Heap: ${info.suggested_heap_gb}GB (${info.suggested_heap_gb * 1024}MB), config: ${info.active_config || 'default'}`, 'info');
-            if (info.large_pages) addLog(`Large pages: ${info.large_page_size_mb}MB`, 'success');
-
-            await refreshConfigList();
-        } catch (e) {
-            addLog(`System detection failed: ${e}`, 'error');
-        } finally {
-            setRefreshLoading(false);
-        }
-    });
-
-    // ─── IFEO ─────────────────────────────────────────────────────────────────
     installBtn.addEventListener('click', async () => {
         setLoading(installBtn, true);
-        addLog('Installing IFEO hook (service.exe)...', 'info');
+        addLog('Installing IFEO hook...', 'info');
         try {
             const result = await invoke('install_ifeo');
             ifeoResult.textContent = result;
@@ -274,6 +298,11 @@ function setupEventListeners() {
             ifeoStatus.className = 'status-badge active';
             ifeoStatus.innerHTML = '<span class="status-dot active"></span> ACTIVE';
             addLog('IFEO installed successfully', 'success');
+            try {
+                const st = await invoke('check_status');
+                logIfeoRegistryLines(st, 'IFEO registry (verify after install):');
+            } catch (_) {}
+            await pullWrapperLogToUi();
         } catch (e) {
             ifeoResult.textContent = e;
             ifeoResult.className = 'ifeo-result error';
@@ -309,10 +338,11 @@ function setupEventListeners() {
             const result = await invoke('check_status');
             ifeoResult.textContent = result;
             ifeoResult.className = 'ifeo-result info';
-            const isActive = !result.includes('Not installed') && !result.includes('not installed');
+            const isActive = isIfeoStatusActive(result);
             ifeoStatus.className = `status-badge ${isActive ? 'active' : 'inactive'}`;
             ifeoStatus.innerHTML = `<span class="status-dot ${isActive ? 'active' : 'inactive'}"></span> ${isActive ? 'ACTIVE' : 'INACTIVE'}`;
-            addLog(isActive ? 'IFEO is active' : 'IFEO not installed', isActive ? 'success' : 'error');
+            logIfeoRegistryLines(result, 'IFEO registry (per target):');
+            addLog(isActive ? 'IFEO: all targets configured' : 'IFEO: at least one target missing', isActive ? 'success' : 'error');
         } catch (e) {
             ifeoResult.textContent = e;
             ifeoResult.className = 'ifeo-result error';
@@ -322,56 +352,17 @@ function setupEventListeners() {
         }
     });
 
-    // ─── Browse ───────────────────────────────────────────────────────────────
-    browseBtn?.addEventListener('click', async () => {
-        if (!isTauri) return;
-        try {
-            const { open } = await import('@tauri-apps/plugin-dialog');
-            const selected = await open({ multiple: false, directory: false, filters: [{ name: 'Executable', extensions: ['exe'] }] });
-            if (selected) {
-                const path = typeof selected === 'string' ? selected : selected[0];
-                if (path) { targetPath.value = path; addLog(`Executable: ${path}`, 'info'); }
-            }
-        } catch (e) { addLog(`Browse failed: ${e}`, 'error'); }
-    });
-
-    browseDirBtn?.addEventListener('click', async () => {
-        if (!isTauri) return;
-        try {
-            const { open } = await import('@tauri-apps/plugin-dialog');
-            const selected = await open({ multiple: false, directory: true });
-            if (selected) {
-                const path = typeof selected === 'string' ? selected : selected[0];
-                if (path) {
-                    gameDir.value = path;
-                    addLog(`Directory: ${path}`, 'info');
-                    try { await invoke('save_game_dir', { gameDir: path }); } catch (_) {}
-                }
-            }
-        } catch (e) { addLog(`Browse failed: ${e}`, 'error'); }
-    });
-
-    gameDir?.addEventListener('change', async () => {
-        if (gameDir.value.trim() && isTauri) {
-            try { await invoke('save_game_dir', { gameDir: gameDir.value.trim() }); } catch (_) {}
-        }
-    });
-
-    // ─── Config management ────────────────────────────────────────────────────
     selectConfigBtn?.addEventListener('click', async () => {
-        if (!configSelect) return;
+        if (!configSelect?.value) return;
         const name = configSelect.value;
-        if (!name) return;
         setLoading(selectConfigBtn, true);
         try {
             const result = await invoke('select_config', { name });
             addLog(result, 'success');
             await refreshConfigList();
             await syncHeapDisplay();
-            try {
-                const active = await invoke('get_active_config');
-                fillConfigEditor(active.name, active.config);
-            } catch (_) {}
+            const active = await invoke('get_active_config');
+            fillConfigEditor(active.name, active.config);
         } catch (e) {
             addLog(`Config select failed: ${e}`, 'error');
         } finally {
@@ -387,37 +378,12 @@ function setupEventListeners() {
             addLog(result, 'success');
             await refreshConfigList();
             await syncHeapDisplay();
-            try {
-                const active = await invoke('get_active_config');
-                fillConfigEditor(active.name, active.config);
-            } catch (_) {}
+            const active = await invoke('get_active_config');
+            fillConfigEditor(active.name, active.config);
         } catch (e) {
             addLog(`Regenerate failed: ${e}`, 'error');
         } finally {
             setLoading(regenerateConfigBtn, false);
-        }
-    });
-
-    document.getElementById('config-preset-grid')?.addEventListener('click', async (ev) => {
-        const chip = ev.target.closest('.config-preset-chip');
-        if (!chip || chip.disabled) return;
-        const preset = chip.dataset.preset;
-        if (!preset) return;
-        setPresetChipsDisabled(true);
-        addLog(`Applying preset: ${preset}…`, 'info');
-        try {
-            const result = await invoke('apply_config_preset', { preset });
-            addLog(result, 'success');
-            await refreshConfigList();
-            await syncHeapDisplay();
-            try {
-                const active = await invoke('get_active_config');
-                fillConfigEditor(active.name, active.config);
-            } catch (_) {}
-        } catch (e) {
-            addLog(`Preset failed: ${e}`, 'error');
-        } finally {
-            setPresetChipsDisabled(false);
         }
     });
 
@@ -464,10 +430,8 @@ function setupEventListeners() {
             addLog(result, 'success');
             await refreshConfigList();
             await syncHeapDisplay();
-            try {
-                const res = await invoke('load_config_by_name', { name });
-                fillConfigEditor(res.name, res.config);
-            } catch (_) {}
+            const res = await invoke('load_config_by_name', { name });
+            fillConfigEditor(res.name, res.config);
             setConfigEditorError('');
         } catch (e) {
             const msg = e instanceof SyntaxError ? `Invalid JSON: ${e.message}` : String(e);
@@ -482,33 +446,23 @@ function setupEventListeners() {
 async function initializeApp() {
     updateClock();
     setInterval(updateClock, 1000);
+    addLog('Application started', 'success');
 
     if (isTauri) {
         try {
-            const savedDir = await invoke('load_game_dir');
-            if (savedDir && gameDir) { gameDir.value = savedDir; addLog(`Loaded saved directory: ${savedDir}`, 'info'); }
-        } catch (_) {}
-        try {
-            await refreshConfigList();
-            try {
-                const active = await invoke('get_active_config');
-                fillConfigEditor(active.name, active.config);
-            } catch (_) {}
-        } catch (_) {}
-    }
-
-    addLog('Application started', 'success');
-    setTimeout(() => refreshBtn.click(), 500);
-
-    setTimeout(async () => {
-        try {
             const result = await invoke('check_status');
-            const isActive = !result.includes('Not installed') && !result.includes('not installed');
+            const isActive = isIfeoStatusActive(result);
             ifeoStatus.className = `status-badge ${isActive ? 'active' : 'inactive'}`;
             ifeoStatus.innerHTML = `<span class="status-dot ${isActive ? 'active' : 'inactive'}"></span> ${isActive ? 'ACTIVE' : 'INACTIVE'}`;
-            addLog(`IFEO status: ${isActive ? 'active' : 'not installed'}`, isActive ? 'success' : 'info');
+            logIfeoRegistryLines(result, 'IFEO registry (per target):');
         } catch (_) {}
-    }, 1000);
+
+        await runSystemRefresh({ showLoadingSpinner: false });
+        try {
+            const active = await invoke('get_active_config');
+            fillConfigEditor(active.name, active.config);
+        } catch (_) {}
+    }
 }
 
 window.addEventListener('DOMContentLoaded', async () => {
@@ -516,5 +470,5 @@ window.addEventListener('DOMContentLoaded', async () => {
     initElements();
     await animateLoadingScreen();
     setupEventListeners();
-    initializeApp();
+    await initializeApp();
 });

@@ -1,43 +1,37 @@
-# STALCRAFT JVM Wrapper — краткая инструкция (Tauri)
+# STALART JVM Wrapper
 
-## Что это
-
-Десктопное приложение под Windows, которое подбирает JVM-параметры под ваше железо и подставляет их при запуске STALCRAFT через IFEO. Основано на логике [оригинальной Go-обёртки](https://github.com/EXBO-Community/stalcraft-jvm-optimization).
+JVM-обёртка для **STALART** / **STALCRAFT** на Windows.
 
 ## Быстрый старт
 
-1. Папка `jvm_wrapper` в **корне** каталога EXBO (рядом с `ExboLink.exe`), не внутри `runtime/…`.
-2. Запустите `wrapper.exe` **от имени администратора**.
-3. В блоке **IFEO REGISTRY** нажмите **INSTALL**.
-4. Запускайте игру как обычно через лаунчер — перехват и параметры JVM применятся автоматически.
+1. Папка `jvm_wrapper` в **корне** лаунчера (рядом с основным `.exe`).
+2. Запустите `wrapper.exe` **от администратора**.
+3. **IFEO REGISTRY** → **INSTALL**.
+4. Запускайте игру через лаунчер как обычно.
 
-## Панель «Configuration» (профили и пресеты)
+## IFEO
 
-- Рядом с `wrapper.exe` создаётся каталог **`configs/`** с JSON-профилями (`default.json` и др.).
-- Имя активного профиля хранится в реестре: `HKCU\Software\StalcraftWrapper\ActiveConfig`.
-- **Presets** — восемь кнопок (Balanced, Latency, Throughput, Nursery, Conservative, Low RAM, Streaming, Power): варианты поверх авто-подбора; каждая перезаписывает свой `preset_*.json` и делает его активным.
-- **Saved profiles** — список `*.json`, **Apply** / **Regen** как выше.
-- **Profile JSON editor** — правка профиля в интерфейсе: загрузка активного или выбранного файла, сохранение в выбранное имя из списка.
+Перехват только клиентских exe: `stalart.exe`, `stalartw.exe`, `stalcraft.exe`, `stalcraftw.exe`.
 
-### Размер heap (как в коде)
+Активный профиль: `HKCU\Software\StalcraftWrapper\ActiveConfig`.
 
-Зависит от **объёма установленной RAM**, шагами 2–8 ГБ (см. таблицу в англ. [README.md](./README.md) в разделе Dynamic Calculation). Это не «процент свободной памяти», а фиксированная сетка по объёму ОЗУ.
+## Конфигурация
 
-## Остальные блоки интерфейса
+- `configs/*.json` рядом с exe
+- **Regen** — пересобрать `default.json` по железу
+- **Apply** — выбрать активный профиль
+- Пример high-end: [`examples/8khz.json`](examples/8khz.json) → скопировать в `configs/`
 
-- **HARDWARE PROFILE** — CPU, GPU, RAM, целевой heap, кнопка обновления детекции.
-- **EXECUTION PROTOCOL** — путь к папке игры и к exe (для справки и сохранения пути; основной сценарий — IFEO).
-- **SYSTEM OUTPUT LOG** — журнал действий в окне.
+## CLI
 
-## IFEO и права
+```text
+wrapper.exe --install
+wrapper.exe --uninstall
+wrapper.exe --status
+```
 
-Установка и снятие IFEO требуют администратора. Без IFEO обёртка не перехватывает запуск из лаунчера.
+## Логи
 
-## Large Pages (по желанию)
+`logs/wrapper.log` — без сырых JVM-флагов и путей пользователя.
 
-Политика «Lock pages in memory» для вашей учётной записи + перезагрузка. Обёртка сама проверит привилегию и при возможности включит large pages в профиле (пресет **Conservative** их отключает принудительно).
-
-## Проблемы
-
-- Ошибки реестра при INSTALL — запуск от администратора.
-- Подробности по установке и типичным ошибкам — [README.md](./README.md) и [USAGE.md](./USAGE.md).
+Подробнее: [README.md](./README.md) (English).
