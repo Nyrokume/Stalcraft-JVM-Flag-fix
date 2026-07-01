@@ -1,0 +1,7 @@
+#!/bin/sh
+# Reject Cursor agent co-author trailers (injected by some IDE shells).
+grep -qiE 'cursoragent@cursor\.com|^Co-authored-by:.*Cursor' "$1" && {
+  echo "error: commit message must not include Cursor co-author trailers" >&2
+  exit 1
+}
+exit 0
