@@ -435,13 +435,14 @@ body {
 }
 
 .main-content--dense {
-    gap: 12px;
+    gap: clamp(8px, 1vw, 12px);
+    font-size: clamp(11px, 0.58rem + 0.38vw, 15px);
 }
 
 .main-grid-top {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 12px;
+    gap: clamp(8px, 1vw, 12px);
     align-items: start;
     min-width: 0;
 }
@@ -454,7 +455,7 @@ body {
 .main-col--stack {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: clamp(8px, 1vw, 12px);
     min-width: 0;
 }
 
@@ -462,62 +463,137 @@ body {
     min-width: 0;
 }
 
-.main-grid-top .panel-header {
-    padding: 10px 14px;
-}
-
-.main-grid-top .panel-divider {
-    margin: 0 14px;
-}
-
-.main-grid-top .hardware-list {
-    padding: 10px 14px;
-}
-
-.main-grid-top .hardware-item {
-    padding: 8px 0;
-}
-
-.main-grid-top .ifeo-content {
-    padding: 10px 14px;
-}
-
-.main-grid-top .ifeo-description {
-    font-size: 12px;
-    line-height: 1.45;
-    margin-bottom: 10px;
-}
-
-.main-grid-top .execution-content {
-    padding: 12px 14px;
-}
-
-.main-grid-top .input-container {
-    margin-bottom: 10px;
-}
-
-.main-grid-top .launch-guide {
-    margin-top: 8px;
-}
-
-.main-grid-top .guide-steps {
-    font-size: 12px;
-    line-height: 1.45;
-}
-
-.main-grid-top .config-json-editor {
-    min-height: 140px;
-    max-height: min(200px, 28vh);
-}
-
 .main-grid-log .system-log {
     flex: none;
     min-height: 0;
 }
 
+.app-wrapper {
+    container-type: inline-size;
+}
+
+.main-grid-top .panel-header {
+    padding: clamp(8px, 1.1vw, 12px) clamp(10px, 1.4vw, 16px);
+    flex-wrap: wrap;
+    gap: clamp(6px, 0.8vw, 10px);
+}
+
+.main-grid-top .panel-title {
+    font-size: clamp(10px, 0.72em, 14px);
+    gap: clamp(6px, 0.8vw, 12px);
+}
+
+.main-grid-top .panel-icon {
+    width: clamp(14px, 1.15em, 20px);
+    height: clamp(14px, 1.15em, 20px);
+}
+
+.main-grid-top .panel-divider {
+    margin: 0 clamp(10px, 1.4vw, 16px);
+}
+
+.main-grid-top .hardware-list {
+    padding: clamp(8px, 1.1vw, 12px) clamp(10px, 1.4vw, 16px);
+}
+
+.main-grid-top .hardware-item {
+    padding: clamp(6px, 0.8vw, 10px) 0;
+}
+
+.main-grid-top .hw-label {
+    font-size: clamp(9px, 0.68em, 12px);
+}
+
+.main-grid-top .hw-main {
+    font-size: clamp(11px, 0.92em, 16px);
+}
+
+.main-grid-top .hw-main.accent {
+    font-size: clamp(12px, 1em, 18px);
+}
+
+.main-grid-top .ifeo-content {
+    padding: clamp(8px, 1.1vw, 12px) clamp(10px, 1.4vw, 16px);
+}
+
+.main-grid-top .ifeo-description {
+    font-size: clamp(10px, 0.88em, 13px);
+    line-height: 1.45;
+    margin-bottom: clamp(6px, 0.9vw, 12px);
+}
+
+.main-grid-top .ifeo-buttons {
+    flex-wrap: wrap;
+    gap: clamp(6px, 0.8vw, 10px);
+}
+
+.main-grid-top .action-btn {
+    flex: 1 1 calc(33.333% - 8px);
+    min-width: min(100%, 5.25rem);
+    padding: clamp(7px, 0.9em, 12px) clamp(8px, 1em, 16px);
+    font-size: clamp(9px, 0.85em, 13px);
+    letter-spacing: 0.06em;
+}
+
+.main-grid-top .action-btn svg {
+    width: clamp(12px, 1.1em, 16px);
+    height: clamp(12px, 1.1em, 16px);
+}
+
+.main-grid-top .status-badge {
+    font-size: clamp(9px, 0.68em, 12px);
+    padding: clamp(4px, 0.5em, 6px) clamp(8px, 0.9em, 14px);
+    max-width: 100%;
+}
+
+.main-grid-top .ifeo-result {
+    font-size: clamp(9px, 0.78em, 12px);
+}
+
+.main-grid-top .execution-content {
+    padding: clamp(8px, 1.1vw, 14px) clamp(10px, 1.4vw, 16px);
+}
+
+.main-grid-top .input-container {
+    margin-bottom: clamp(6px, 0.9vw, 12px);
+}
+
+.main-grid-top .launch-guide {
+    margin-top: clamp(6px, 0.8vw, 10px);
+}
+
+.main-grid-top .guide-steps {
+    font-size: clamp(10px, 0.88em, 13px);
+    line-height: 1.45;
+}
+
+.main-grid-top .config-json-editor {
+    min-height: clamp(100px, 18vh, 160px);
+    max-height: min(200px, 28vh);
+}
+
 .main-grid-log .log-container {
     max-height: min(240px, 32vh);
-    padding: 10px 16px;
+    padding: clamp(8px, 1.1vw, 12px) clamp(10px, 1.4vw, 18px);
+    font-size: clamp(10px, 0.88em, 13px);
+}
+
+.app-header {
+    font-size: clamp(11px, 0.58rem + 0.38vw, 15px);
+}
+
+.title-block h1 {
+    font-size: clamp(1.1rem, 0.85rem + 1.2vw, 1.75rem);
+}
+
+.subtitle,
+.timestamp,
+.status-text {
+    font-size: clamp(10px, 0.75em, 13px);
+}
+
+.app-footer {
+    font-size: clamp(10px, 0.72em, 12px);
 }
 
 .mono {
@@ -1973,4 +2049,28 @@ a.welcome-contact-link:hover .welcome-contact-label {
     .loading-subtitle {
         font-size: 12px;
     }
+}
+
+/* Browser-only Vite dev (mock backend) */
+.dev-browser-banner {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 100000;
+    padding: 6px 12px;
+    text-align: center;
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: #1a1208;
+    background: linear-gradient(90deg, #ffb347, #ff8c00);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.15);
+    pointer-events: none;
+}
+
+body:has(.dev-browser-banner) .app-container,
+body:has(.dev-browser-banner) .loading-screen {
+    margin-top: 28px;
 }

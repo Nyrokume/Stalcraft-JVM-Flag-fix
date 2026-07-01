@@ -4,6 +4,7 @@ import { t, loadingMessages, applyI18n, setupLangSwitcher } from './i18n.js';
 
 let invoke;
 let isTauri = false;
+let useMockBackend = false;
 let currentWindow;
 
 let refreshBtn, installBtn, uninstallBtn, verifyBtn, ifeoResult;
@@ -16,30 +17,39 @@ let loadingScreen, loadingProgress, loadingStatus;
 let configSelect, configActiveLabel, regenerateConfigBtn, selectConfigBtn;
 let ifeoStatusText;
 
+function hasBackend() {
+    return isTauri || useMockBackend;
+}
+
 async function initTauriAPI() {
-    try {
-        if (typeof window !== 'undefined' && window.__TAURI__?.core?.invoke) {
-            invoke = window.__TAURI__.core.invoke.bind(window.__TAURI__.core);
-            isTauri = true;
-        } else {
-            const tauriCore = await import('@tauri-apps/api/core');
-            invoke = tauriCore.invoke;
-            isTauri = true;
-        }
+    const { isTauri: inTauri, invoke: tauriInvoke } = await import('@tauri-apps/api/core');
+    isTauri = inTauri();
+    currentWindow = null;
+
+    if (isTauri) {
+        invoke = typeof window !== 'undefined' && window.__TAURI__?.core?.invoke
+            ? window.__TAURI__.core.invoke.bind(window.__TAURI__.core)
+            : tauriInvoke;
         try {
-            const tauriWebview = await import('@tauri-apps/api/webviewWindow');
-            currentWindow = tauriWebview.getCurrentWebviewWindow();
+            const { getCurrentWebviewWindow } = await import('@tauri-apps/api/webviewWindow');
+            currentWindow = getCurrentWebviewWindow();
         } catch (_) {
             currentWindow = null;
         }
-    } catch (e) {
-        console.error('Tauri API not available:', e);
-        invoke = async (cmd) => {
-            throw new Error(`Tauri command '${cmd}' not available in browser mode`);
-        };
-        currentWindow = null;
-        isTauri = false;
+        return;
     }
+
+    if (import.meta.env.DEV) {
+        const { createDevMockInvoke, showDevBanner } = await import('./dev-mock.js');
+        invoke = createDevMockInvoke();
+        useMockBackend = true;
+        showDevBanner();
+        return;
+    }
+
+    invoke = async (cmd) => {
+        throw new Error(`Tauri command '${cmd}' not available outside the app`);
+    };
 }
 
 function formatDetectError(err) {
@@ -189,9 +199,9 @@ function applyHardwareInfo(info) {
 function animateLoadingScreen() {
     const messages = loadingMessages();
     if (loadingStatus) loadingStatus.textContent = t('loadingInit');
-    const hwPromise = isTauri ? invoke('get_system_info').catch(() => null) : Promise.resolve(null);
+    const hwPromise = hasBackend() ? invoke('get_system_info').catch(() => null) : Promise.resolve(null);
+    const totalDuration = useMockBackend ? 1200 : 5000;
     return new Promise((resolve) => {
-        const totalDuration = 5000;
         const messageInterval = totalDuration / messages.length;
         const progressStep = 100 / (totalDuration / 50);
         let progress = 0, messageIndex = 0;
@@ -293,7 +303,7 @@ function setRefreshLoading(loading) {
 }
 
 async function syncHeapDisplay() {
-    if (!heapSize || !isTauri) return;
+    if (!heapSize || !hasBackend()) return;
     try {
         const info = await invoke('get_system_info');
         const heapGb = numInfo(info, 'suggested_heap_gb', 'suggestedHeapGb');
@@ -334,7 +344,7 @@ async function refreshConfigList() {
 }
 
 async function runSystemRefresh({ showLoadingSpinner = true } = {}) {
-    if (!isTauri || !refreshBtn) return;
+    if (!hasBackend() || !refreshBtn) return;
     if (showLoadingSpinner) setRefreshLoading(true);
     addLog(t('logDetecting'), 'info');
     try {
@@ -512,7 +522,7 @@ async function initializeApp() {
 
     await setupWelcomeModal();
 
-    if (isTauri) {
+    if (hasBackend()) {
         try {
             const result = await invoke('check_status');
             const isActive = isIfeoStatusActive(result);
@@ -528,7 +538,7 @@ async function initializeApp() {
 }
 
 window.__onLangChange = async () => {
-    if (isTauri) {
+    if (hasBackend()) {
         try {
             const info = await invoke('get_system_info');
             applyHardwareInfo(info);

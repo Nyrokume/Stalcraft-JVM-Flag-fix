@@ -3,7 +3,9 @@
   "version": "1.5.0",
   "description": "STALZONE JVM Wrapper — Tauri desktop IFEO JVM tuning",
   "scripts": {
-    "dev": "tauri dev",
+    "dev": "powershell -ExecutionPolicy Bypass -File scripts/dev.ps1",
+    "dev:web": "vite",
+    "dev:tauri": "powershell -ExecutionPolicy Bypass -File scripts/dev.ps1",
     "vite": "vite",
     "build": "vite build",
     "tauri": "tauri",

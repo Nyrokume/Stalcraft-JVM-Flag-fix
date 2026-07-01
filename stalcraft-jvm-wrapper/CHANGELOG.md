@@ -8,6 +8,7 @@
 - Custom yellow-orange scrollbars (UI + log)
 - License text: non-commercial, trusted sources only, no liability for third parties
 - Modals shown on every launch (no skip)
+- Fluid UI scaling for dense layout (IFEO panel, hardware, log) via `clamp()`
 
 ## v1.4.0 (2026-07-01)
 
