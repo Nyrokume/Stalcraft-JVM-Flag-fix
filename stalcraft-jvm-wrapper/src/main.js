@@ -18,18 +18,36 @@ let ifeoStatusText;
 
 async function initTauriAPI() {
     try {
-        const tauriCore = await import('@tauri-apps/api/core');
-        const tauriWindow = await import('@tauri-apps/api/window');
-        invoke = tauriCore.invoke;
-        currentWindow = tauriWindow.getCurrentWindow();
-        isTauri = true;
+        if (typeof window !== 'undefined' && window.__TAURI__?.core?.invoke) {
+            invoke = window.__TAURI__.core.invoke.bind(window.__TAURI__.core);
+            isTauri = true;
+        } else {
+            const tauriCore = await import('@tauri-apps/api/core');
+            invoke = tauriCore.invoke;
+            isTauri = true;
+        }
+        try {
+            const tauriWebview = await import('@tauri-apps/api/webviewWindow');
+            currentWindow = tauriWebview.getCurrentWebviewWindow();
+        } catch (_) {
+            currentWindow = null;
+        }
     } catch (e) {
         console.error('Tauri API not available:', e);
         invoke = async (cmd) => {
             throw new Error(`Tauri command '${cmd}' not available in browser mode`);
         };
         currentWindow = null;
+        isTauri = false;
     }
+}
+
+function formatDetectError(err) {
+    const msg = String(err);
+    if (/invoke|TypeError|not available|undefined/i.test(msg)) {
+        return t('logDetectFailHwid', { err: msg });
+    }
+    return t('logDetectFail', { err: msg });
 }
 
 function initElements() {
@@ -112,11 +130,27 @@ function setIfeoBadge(active) {
     }
 }
 
-function applyHardwareInfo(info) {
-    if (!info) return;
+function formatHardwareName(name, fallback) {
+    const raw = (name || '').trim();
+    if (!raw || raw === '—' || /^unknown/i.test(raw)) return fallback;
+    return raw
+        .replace(/\s+/g, ' ')
+        .replace(/\s*@\s*[\d.]+\s*GHz/i, '')
+        .trim();
+}
 
-    const cpuName = strInfo(info, 'cpu_name', 'cpuName', t('unknownCpu'));
-    const gpuName = strInfo(info, 'gpu_name', 'gpuName', t('unknownGpu'));
+function formatMemTier(tier) {
+    const v = String(tier || 'mid').toLowerCase();
+    if (v === 'slow') return t('memTierSlow');
+    if (v === 'mid') return t('memTierMid');
+    return t('memTier', { tier: v });
+}
+
+function applyHardwareInfo(info) {
+    if (!info || !cpuInfo || !gpuInfo) return;
+
+    const cpuName = formatHardwareName(strInfo(info, 'cpu_name', 'cpuName'), t('unknownCpu'));
+    const gpuName = formatHardwareName(strInfo(info, 'gpu_name', 'gpuName'), t('unknownGpu'));
     const cores = numInfo(info, 'cpu_cores', 'cpuCores');
     const threads = numInfo(info, 'cpu_threads', 'cpuThreads');
     const l3 = numInfo(info, 'l3_cache_mb', 'l3CacheMb');
@@ -138,10 +172,10 @@ function applyHardwareInfo(info) {
 
     const usedPct = totalRam > 0 ? Math.min(100, Math.max(0, ((totalRam - freeRam) / totalRam) * 100)) : 0;
     ramFill.style.width = `${usedPct.toFixed(0)}%`;
-    ramTotal.textContent = `${totalRam.toFixed(1)} GB`;
-    ramAvailable.textContent = t('ramAvailable', { n: freeRam.toFixed(1) });
+    ramTotal.textContent = totalRam > 0 ? `${totalRam.toFixed(1)} GB` : t('detecting');
+    ramAvailable.textContent = totalRam > 0 ? t('ramAvailable', { n: freeRam.toFixed(1) }) : '';
 
-    if (memTier) memTier.textContent = t('memTier', { tier: memTierVal });
+    if (memTier) memTier.textContent = formatMemTier(memTierVal);
     if (memSpeed) {
         const lp = largePages
             ? (lpMb > 0 ? ` • ${t('largePagesSize', { mb: lpMb })}` : ` • ${t('largePagesOn')}`)
@@ -321,7 +355,7 @@ async function runSystemRefresh({ showLoadingSpinner = true } = {}) {
         await refreshConfigList();
         await pullWrapperLogToUi();
     } catch (e) {
-        addLog(t('logDetectFail', { err: e }), 'error');
+        addLog(formatDetectError(e), 'error');
     } finally {
         if (showLoadingSpinner) setRefreshLoading(false);
     }
@@ -427,10 +461,54 @@ function setupEventListeners() {
 
 }
 
+const WELCOME_STORAGE_KEY = 'stalcraft-jvm-welcome-hidden';
+
+function setupWelcomeModal() {
+    return new Promise((resolve) => {
+        const overlay = document.getElementById('welcome-modal');
+        const accept = document.getElementById('welcome-accept');
+        const dismiss = document.getElementById('welcome-dismiss');
+        const okBtn = document.getElementById('welcome-ok');
+        if (!overlay || !okBtn || !accept) {
+            resolve();
+            return;
+        }
+
+        const syncOk = () => {
+            okBtn.disabled = !accept.checked;
+        };
+
+        accept.addEventListener('change', syncOk);
+        syncOk();
+
+        const hide = () => {
+            if (!accept.checked) return;
+            if (dismiss?.checked) {
+                localStorage.setItem(WELCOME_STORAGE_KEY, '1');
+            }
+            overlay.classList.add('hidden');
+            overlay.setAttribute('aria-hidden', 'true');
+            resolve();
+        };
+
+        okBtn.addEventListener('click', hide);
+
+        if (localStorage.getItem(WELCOME_STORAGE_KEY) === '1') {
+            resolve();
+            return;
+        }
+
+        overlay.classList.remove('hidden');
+        overlay.setAttribute('aria-hidden', 'false');
+    });
+}
+
 async function initializeApp() {
     updateClock();
     setInterval(updateClock, 1000);
     addLog(t('logStarted'), 'success');
+
+    await setupWelcomeModal();
 
     if (isTauri) {
         try {

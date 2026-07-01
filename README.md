@@ -1,5 +1,10 @@
-﻿# Stalcraft JVM Flag Fix
+﻿# STALZONE JVM Flag Fix
 
-Tauri wrapper for Stalcraft JVM launch flags. See the app documentation:
+Tauri-обёртка JVM-флагов для **STALZONE**. Документация приложения:
 
-- [stalcraft-jvm-wrapper/README.md](stalcraft-jvm-wrapper/README.md)
+- [stalcraft-jvm-wrapper/README.md](stalcraft-jvm-wrapper/README.md) (EN)
+- [stalcraft-jvm-wrapper/README_RU.md](stalcraft-jvm-wrapper/README_RU.md) (RU)
+
+## Releases
+
+https://github.com/Nyrokume/Stalcraft-JVM-Flag-fix/releases

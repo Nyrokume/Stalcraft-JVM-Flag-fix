@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stalcraft JVM Wrapper</title>
+    <title>STALZONE JVM Wrapper</title>
     <link rel="stylesheet" href="./assets/styles.css">
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <script type="module" src="./main.js"></script>
@@ -19,7 +19,7 @@
                     <path d="M2 17l10 5 10-5"/>
                     <path d="M2 12l10 5 10-5"/>
                 </svg>
-                <span class="titlebar-title" data-i18n="appTitle">Stalcraft JVM Wrapper</span>
+                <span class="titlebar-title" data-i18n="appTitle">STALZONE JVM Wrapper</span>
             </div>
             <div class="titlebar-controls">
                 <div class="titlebar-lang">
@@ -54,7 +54,7 @@
                 </svg>
             </div>
             <div class="loading-title">
-                <h1>STALCRAFT <span class="accent">JVM</span> WRAPPER</h1>
+                <h1>STALZONE <span class="accent">JVM</span> WRAPPER</h1>
                 <p class="loading-subtitle">Initializing...</p>
             </div>
             <div class="loading-bar-container">
@@ -74,7 +74,7 @@
                 <path d="M2 17l10 5 10-5"/>
                 <path d="M2 12l10 5 10-5"/>
             </svg>
-                <span class="titlebar-title" data-i18n="appTitle">Stalcraft JVM Wrapper</span>
+                <span class="titlebar-title" data-i18n="appTitle">STALZONE JVM Wrapper</span>
         </div>
         <div class="titlebar-controls">
             <div class="titlebar-lang">
@@ -112,8 +112,8 @@
                     </svg>
                 </div>
                 <div class="title-block">
-                    <h1>STALCRAFT <span class="accent">JVM</span> WRAPPER</h1>
-                    <p class="subtitle" data-i18n="subtitle">Dynamic JVM optimization for STALCRAFT: X on Windows</p>
+                    <h1>STALZONE <span class="accent">JVM</span> WRAPPER</h1>
+                    <p class="subtitle" data-i18n="subtitle">Dynamic JVM optimization for STALZONE on Windows</p>
                 </div>
             </div>
             <div class="header-right">
@@ -326,12 +326,40 @@
         <!-- Footer -->
         <footer class="app-footer">
             <div class="footer-left">
-                <span class="footer-en">STALCRAFT JVM WRAPPER</span>
+                <span class="footer-en" data-i18n="footer">STALZONE JVM WRAPPER</span>
             </div>
             <div class="footer-right">
-                <span class="footer-copyright">v1.3.0</span>
+                <span class="footer-author" data-i18n="footerAuthor">by Nyrokume.dev</span>
+                <span class="footer-divider">//</span>
+                <span class="footer-copyright">v1.4.0</span>
             </div>
         </footer>
+    </div>
+
+    <!-- License agreement modal -->
+    <div class="welcome-modal hidden" id="welcome-modal" aria-hidden="true">
+        <div class="welcome-card" role="dialog" aria-labelledby="welcome-title">
+            <div class="welcome-logo">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                    <path d="M2 17l10 5 10-5"/>
+                    <path d="M2 12l10 5 10-5"/>
+                </svg>
+            </div>
+            <h2 class="welcome-title" id="welcome-title" data-i18n="welcomeTitle">License Agreement</h2>
+            <p class="welcome-authors" data-i18n="welcomeAuthors">Authors: Nyrokume, SilentBless</p>
+            <p class="welcome-body" data-i18n="welcomeBody">Program description</p>
+            <div class="welcome-license" data-i18n="welcomeLicense">License terms</div>
+            <label class="welcome-check welcome-accept">
+                <input type="checkbox" id="welcome-accept">
+                <span data-i18n="welcomeAccept">I accept the license agreement</span>
+            </label>
+            <label class="welcome-check">
+                <input type="checkbox" id="welcome-dismiss">
+                <span data-i18n="welcomeDontShow">Don't show on startup</span>
+            </label>
+            <button type="button" class="action-btn welcome-ok" id="welcome-ok" data-i18n="welcomeOk" disabled>Continue</button>
+        </div>
     </div>
 </body>
 </html>

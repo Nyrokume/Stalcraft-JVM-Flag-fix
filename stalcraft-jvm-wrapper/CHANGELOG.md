@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.4.0 (2026-07-01)
+
+- Rebrand UI to **STALZONE** (titlebar, header, footer, i18n)
+- License agreement modal (Nyrokume, SilentBless; non-commercial terms)
+- Improved hardware detection (CPUID brand, WMI, multi-view registry)
+- HWID spoofing hint on detection errors
+- Custom layered app icon
+- README screenshots in `docs/screenshots/`
+
 ## v1.3.0 (2026-07-01)
 
 - Separate `service.exe` IFEO debugger (EXBO parity)

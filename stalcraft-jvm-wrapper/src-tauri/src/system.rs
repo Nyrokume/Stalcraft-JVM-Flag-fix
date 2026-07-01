@@ -117,6 +117,7 @@ struct PRIVILEGE_SET {
 const HKEY_LOCAL_MACHINE: isize = -2147483648i64 as isize; // 0x80000002
 const KEY_READ: u32 = 0x20019;
 const KEY_WOW64_64KEY: u32 = 0x0100;
+const KEY_WOW64_32KEY: u32 = 0x0200;
 
 const RELATION_PROCESSOR_CORE: u32 = 0;
 const RELATION_CACHE: u32 = 2;
@@ -511,7 +512,96 @@ fn get_processor_info(relation: u32) -> Option<Vec<u8>> {
     Some(buf)
 }
 
-// ─── CPU / GPU из реестра (устойчивее к нумерации подключей) ─────────────────
+// ─── CPU / GPU из реестра + CPUID + WMI ─────────────────────────────────────
+
+fn clean_hardware_name(s: &str) -> String {
+    let mut t = s.trim().to_string();
+    while t.contains("  ") {
+        t = t.replace("  ", " ");
+    }
+    t
+}
+
+fn is_generic_cpu_identifier(s: &str) -> bool {
+    let t = s.trim();
+    t.starts_with("Intel64 Family")
+        || t.starts_with("AMD64 Family")
+        || t.starts_with("x86 Family")
+        || t.eq_ignore_ascii_case("unknown")
+}
+
+#[cfg(target_arch = "x86_64")]
+fn detect_cpu_brand_cpuid() -> Option<String> {
+    use std::arch::x86_64::{__cpuid, __cpuid_count};
+
+    let ext = unsafe { __cpuid(0x8000_0000) };
+    if ext.eax < 0x8000_0004 {
+        return None;
+    }
+
+    let mut brand = [0u32; 12];
+    for (i, chunk) in brand.chunks_mut(4).enumerate() {
+        let leaf = unsafe { __cpuid_count(0x8000_0002 + i as u32, 0) };
+        chunk[0] = leaf.eax;
+        chunk[1] = leaf.ebx;
+        chunk[2] = leaf.ecx;
+        chunk[3] = leaf.edx;
+    }
+
+    let bytes: Vec<u8> = brand.iter().flat_map(|w| w.to_le_bytes()).collect();
+    let s = String::from_utf8_lossy(&bytes)
+        .trim_matches('\0')
+        .trim()
+        .to_string();
+    if s.is_empty() || is_generic_cpu_identifier(&s) {
+        return None;
+    }
+    Some(clean_hardware_name(&s))
+}
+
+#[cfg(not(target_arch = "x86_64"))]
+fn detect_cpu_brand_cpuid() -> Option<String> {
+    None
+}
+
+#[cfg(windows)]
+fn run_hidden_powershell(script: &str) -> Option<String> {
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+
+    let output = std::process::Command::new("powershell")
+        .args(["-NoProfile", "-NonInteractive", "-Command", script])
+        .creation_flags(CREATE_NO_WINDOW)
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let s = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if s.is_empty() {
+        return None;
+    }
+    Some(clean_hardware_name(&s))
+}
+
+#[cfg(not(windows))]
+fn run_hidden_powershell(_script: &str) -> Option<String> {
+    None
+}
+
+fn detect_cpu_name_wmi() -> Option<String> {
+    run_hidden_powershell(
+        "(Get-CimInstance Win32_Processor | Select-Object -ExpandProperty Name -First 1)",
+    )
+    .filter(|s| !is_generic_cpu_identifier(s))
+}
+
+fn detect_gpu_name_wmi() -> Option<String> {
+    run_hidden_powershell(
+        "Get-CimInstance Win32_VideoController | Where-Object { $_.AdapterRAM -gt 0 -and $_.Name -notmatch 'Microsoft Basic' } | Sort-Object AdapterRAM -Descending | Select-Object -ExpandProperty Name -First 1",
+    )
+    .filter(|s| gpu_driver_desc_usable(s))
+}
 
 /// `ProcessorNameString` из любого подключа `CentralProcessor` (нумерация на разных ПК разная).
 fn detect_cpu_name() -> String {
@@ -519,36 +609,45 @@ fn detect_cpu_name() -> String {
     for sub in enumerate_subkey_names(CPU_BASE) {
         let path = format!(r"{}\{}", CPU_BASE, sub);
         if let Some(s) = get_registry_string(&path, "ProcessorNameString")
-            .filter(|s| !s.trim().is_empty())
+            .filter(|s| !s.trim().is_empty() && !is_generic_cpu_identifier(s))
         {
-            return s;
-        }
-        if let Some(s) = get_registry_string(&path, "Identifier")
-            .filter(|s| !s.trim().is_empty())
-        {
-            return s;
+            return clean_hardware_name(&s);
         }
     }
     for i in 0u32..32 {
         let path = format!(r"{}\{}", CPU_BASE, i);
         if let Some(s) = get_registry_string(&path, "ProcessorNameString")
+            .filter(|s| !s.trim().is_empty() && !is_generic_cpu_identifier(s))
+        {
+            return clean_hardware_name(&s);
+        }
+    }
+    if let Some(s) = detect_cpu_brand_cpuid() {
+        return s;
+    }
+    if let Some(s) = detect_cpu_name_wmi() {
+        return s;
+    }
+    for sub in enumerate_subkey_names(CPU_BASE) {
+        let path = format!(r"{}\{}", CPU_BASE, sub);
+        if let Some(s) = get_registry_string(&path, "ProcessorNameString")
             .filter(|s| !s.trim().is_empty())
         {
-            return s;
+            return clean_hardware_name(&s);
         }
         if let Some(s) = get_registry_string(&path, "Identifier")
             .filter(|s| !s.trim().is_empty())
         {
-            return s;
+            return clean_hardware_name(&s);
         }
     }
     if let Ok(v) = std::env::var("PROCESSOR_IDENTIFIER") {
         let t = v.trim().to_string();
         if !t.is_empty() {
-            return t;
+            return clean_hardware_name(&t);
         }
     }
-    "Unknown CPU".to_string()
+    detect_cpu_brand_cpuid().unwrap_or_else(|| "Unknown CPU".to_string())
 }
 
 const DISPLAY_CLASS_PATH: &str =
@@ -580,7 +679,7 @@ fn detect_gpu_name() -> String {
     }
     candidates.sort_by_key(|(ord, _)| *ord);
     if let Some((_, desc)) = candidates.last() {
-        return desc.clone();
+        return clean_hardware_name(desc);
     }
     // без фильтра — хоть какое-то имя адаптера
     for sub in enumerate_subkey_names(DISPLAY_CLASS_PATH) {
@@ -589,23 +688,35 @@ fn detect_gpu_name() -> String {
         }
         let path = format!(r"{}\{}", DISPLAY_CLASS_PATH, sub);
         if let Some(desc) = get_registry_string(&path, "DriverDesc").filter(|d| !d.trim().is_empty()) {
-            return desc;
+            return clean_hardware_name(&desc);
         }
+    }
+    if let Some(s) = detect_gpu_name_wmi() {
+        return s;
     }
     "Unknown GPU".to_string()
 }
 
 /// Имена подключей первого уровня под `HKLM\path` (для класса видео).
 fn enumerate_subkey_names(key_path: &str) -> Vec<String> {
+    for flags in [KEY_READ, KEY_READ | KEY_WOW64_64KEY, KEY_READ | KEY_WOW64_32KEY] {
+        let names = enumerate_subkey_names_with_flags(key_path, flags);
+        if !names.is_empty() {
+            return names;
+        }
+    }
+    Vec::new()
+}
+
+fn enumerate_subkey_names_with_flags(key_path: &str, sam_desired: u32) -> Vec<String> {
     let wide_path = to_wide(key_path);
-    let key_read_64 = KEY_READ | KEY_WOW64_64KEY;
     let mut hkey: isize = 0;
     let open = unsafe {
         RegOpenKeyExW(
             HKEY_LOCAL_MACHINE,
             wide_path.as_ptr(),
             0,
-            key_read_64,
+            sam_desired,
             &mut hkey,
         )
     };
@@ -657,13 +768,21 @@ fn to_wide(s: &str) -> Vec<u16> {
 }
 
 pub fn get_registry_string(key_path: &str, value_name: &str) -> Option<String> {
+    for flags in [KEY_READ, KEY_READ | KEY_WOW64_64KEY, KEY_READ | KEY_WOW64_32KEY] {
+        if let Some(s) = get_registry_string_with_flags(key_path, value_name, flags) {
+            return Some(s);
+        }
+    }
+    None
+}
+
+fn get_registry_string_with_flags(key_path: &str, value_name: &str, sam_desired: u32) -> Option<String> {
     let wide_path = to_wide(key_path);
     let wide_value = to_wide(value_name);
-    let key_read_64 = KEY_READ | KEY_WOW64_64KEY;
 
     let mut hkey: isize = 0;
     let result = unsafe {
-        RegOpenKeyExW(HKEY_LOCAL_MACHINE, wide_path.as_ptr(), 0, key_read_64, &mut hkey)
+        RegOpenKeyExW(HKEY_LOCAL_MACHINE, wide_path.as_ptr(), 0, sam_desired, &mut hkey)
     };
     if result != 0 {
         return None;

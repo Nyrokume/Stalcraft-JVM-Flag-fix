@@ -1,11 +1,12 @@
 [package]
 name = "stalcraft-jvm-wrapper"
-version = "1.3.0"
-description = "Stalcraft JVM Wrapper — IFEO JVM tuning for Windows"
+version = "1.4.0"
+description = "STALZONE JVM Wrapper — IFEO JVM tuning for Windows"
 authors = []
 license = "MIT"
 repository = ""
 edition = "2021"
+default-run = "stalcraft-jvm-wrapper"
 
 [lib]
 name = "stalcraft_jvm_wrapper"
