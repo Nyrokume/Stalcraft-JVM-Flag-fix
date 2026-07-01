@@ -36,6 +36,50 @@ body {
     overflow-x: hidden;
     line-height: 1.6;
     font-size: 15px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--accent-orange) var(--bg-input);
+}
+
+/* ========== CUSTOM SCROLLBAR ========== */
+.custom-scroll,
+.log-container,
+.welcome-card {
+    scrollbar-width: thin;
+    scrollbar-color: var(--accent-orange) var(--bg-input);
+}
+
+.custom-scroll::-webkit-scrollbar,
+.log-container::-webkit-scrollbar,
+.welcome-card::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+.custom-scroll::-webkit-scrollbar-track,
+.log-container::-webkit-scrollbar-track,
+.welcome-card::-webkit-scrollbar-track {
+    background: var(--bg-input);
+    border-radius: 6px;
+}
+
+.custom-scroll::-webkit-scrollbar-thumb,
+.log-container::-webkit-scrollbar-thumb,
+.welcome-card::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, var(--accent-orange-dim) 0%, var(--accent-orange) 100%);
+    border-radius: 6px;
+    border: 2px solid var(--bg-input);
+}
+
+.custom-scroll::-webkit-scrollbar-thumb:hover,
+.log-container::-webkit-scrollbar-thumb:hover,
+.welcome-card::-webkit-scrollbar-thumb:hover {
+    background: var(--accent-orange);
+}
+
+.custom-scroll::-webkit-scrollbar-corner,
+.log-container::-webkit-scrollbar-corner,
+.welcome-card::-webkit-scrollbar-corner {
+    background: var(--bg-input);
 }
 
 /* ========== LOADING SCREEN ========== */
@@ -1491,16 +1535,109 @@ body {
 
 .welcome-license {
     font-size: 12px;
-    line-height: 1.55;
+    line-height: 1.6;
     color: var(--text-secondary);
     background: var(--bg-input);
     border: 1px solid var(--border-secondary);
     border-radius: 6px;
     padding: 12px 14px;
+    margin-bottom: 12px;
+    text-align: left;
+}
+
+.welcome-license p {
+    margin: 0 0 10px;
+}
+
+.welcome-license p:last-child {
+    margin-bottom: 0;
+}
+
+.welcome-info-block {
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--text-primary);
+    background: var(--bg-input);
+    border: 1px solid var(--border-secondary);
+    border-radius: 6px;
+    padding: 14px;
     margin-bottom: 14px;
     text-align: left;
-    max-height: 140px;
-    overflow-y: auto;
+}
+
+.welcome-support-line {
+    margin: 0;
+}
+
+.welcome-nick {
+    color: var(--accent-orange);
+    font-weight: 700;
+    margin-left: 4px;
+}
+
+.welcome-contacts {
+    margin-bottom: 14px;
+    text-align: left;
+}
+
+.welcome-contacts-title {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+}
+
+.welcome-contacts-links {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.welcome-contact-link {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 12px;
+    border: 1px solid var(--border-secondary);
+    border-radius: 6px;
+    background: var(--bg-input);
+    color: var(--text-primary);
+    text-decoration: none;
+    font-size: 13px;
+    transition: border-color 0.2s, background 0.2s;
+}
+
+a.welcome-contact-link:hover {
+    border-color: var(--accent-orange);
+    background: var(--bg-accent);
+    color: var(--accent-orange);
+}
+
+.welcome-contact-static {
+    cursor: default;
+}
+
+.welcome-contact-label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+}
+
+a.welcome-contact-link:hover .welcome-contact-label {
+    color: var(--accent-orange);
+}
+
+.welcome-contact-value {
+    font-weight: 600;
+    color: var(--accent-orange);
+    word-break: break-all;
 }
 
 .welcome-check {

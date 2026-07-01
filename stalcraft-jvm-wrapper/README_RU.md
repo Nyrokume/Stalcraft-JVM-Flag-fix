@@ -2,18 +2,20 @@
 
 Порт [stalcraft-jvm-optimization](https://github.com/EXBO-Community/stalcraft-jvm-optimization) для **STALZONE** (лаунчер EXBO).
 
+**Актуальный релиз:** [v1.5.0](https://github.com/Nyrokume/Stalcraft-JVM-Flag-fix/releases/latest) · `wrapper.zip`
+
 ## Скриншоты
 
-| Главное окно (RU) | Лицензия |
-|---|---|
-| ![Интерфейс](docs/screenshots/main-ru.png) | ![Лицензия](docs/screenshots/license-ru.png) |
+| Главное окно | Лицензия (шаг 1) | Авторы и контакты (шаг 2) |
+|---|---|---|
+| ![Интерфейс](docs/screenshots/main-ru.png) | ![Лицензия](docs/screenshots/license-ru.png) | ![Инфо](docs/screenshots/info-ru.png) |
 
 ## Файлы
 
 ```
 %AppData%\Roaming\EXBO\jvm_wrapper\
   stalcraft-jvm-wrapper.exe   ← GUI (имя файла без изменений)
-  service.exe                 ← перехватчик IFEO
+  service.exe                 ← перехватчик IFEO (обязателен)
   configs\default.json
   logs\wrapper.log
 ```
@@ -28,20 +30,25 @@
 ## Быстрый старт
 
 1. Исключения антивируса для папки `EXBO`.
-2. Скачайте `wrapper.zip` из [Releases](https://github.com/Nyrokume/Stalcraft-JVM-Flag-fix/releases) или соберите `npm run build:prod`.
+2. Скачайте **`wrapper.zip`** из [Releases](https://github.com/Nyrokume/Stalcraft-JVM-Flag-fix/releases) или соберите: `npm run build:prod`.
 3. Распакуйте в `%AppData%\Roaming\EXBO\jvm_wrapper\`.
-4. GUI → примите лицензию → **УСТАНОВИТЬ** (UAC) → **ПРОВЕРКА**.
-5. Полностью закройте лаунчер → запустите STALZONE.
-6. В логе: `service_invoked` → `jvm_mode=INJECTED`.
+4. Запустите GUI:
+   - **Шаг 1:** примите лицензию
+   - **Шаг 2:** экран авторов и контактов → **Понятно**
+5. **УСТАНОВИТЬ** (UAC) → **ПРОВЕРКА**.
+6. Полностью закройте лаунчер → запустите STALZONE.
+7. В логе: `service_invoked` → `jvm_mode=INJECTED`.
 
 **Не запускайте `service.exe` вручную.**
 
-## v1.4.0
+## v1.5.0
 
-- Брендинг STALZONE, интерфейс RU/EN
-- Определение железа (CPUID, WMI, реестр)
-- Лицензионное соглашение (некоммерческое ПО)
-- Иконка приложения, IFEO через `service.exe`
+- Брендинг **STALZONE**, интерфейс RU/EN
+- Два окна при старте: лицензия → авторы и контакты (каждый запуск)
+- Определение железа: CPUID, WMI, реестр
+- IFEO через `service.exe`, UAC из GUI
+- Кастомная иконка, оранжевые скроллбары
+- Контакты в приложении: GitHub, Discord, Telegram
 
 ## Сборка
 
@@ -50,8 +57,19 @@ npm install
 npm run build:prod
 ```
 
-## Интерфейс
+Результат: `wrapper.zip`.
 
-Переключатель **RU / EN** в titlebar. Активный профиль: `HKCU\Software\StalcraftWrapper\ActiveConfig`
+## Авторы и поддержка
+
+| Канал | Контакт |
+|-------|---------|
+| GitHub | [Nyrokume](https://github.com/Nyrokume) |
+| Discord | `@nyrokume` |
+| Telegram | [@nyrokume](https://t.me/nyrokume) |
+| В игре | **DementiyRezak** |
+
+Активный профиль: `HKCU\Software\StalcraftWrapper\ActiveConfig`
+
+**Лицензия:** бесплатно, некоммерческое ПО. Устанавливайте только из проверенных источников.
 
 **Авторы:** Nyrokume, SilentBless · [Nyrokume.dev](https://nyrokume.dev)

@@ -461,45 +461,47 @@ function setupEventListeners() {
 
 }
 
-const WELCOME_STORAGE_KEY = 'stalcraft-jvm-welcome-hidden';
-
 function setupWelcomeModal() {
     return new Promise((resolve) => {
-        const overlay = document.getElementById('welcome-modal');
+        const licenseModal = document.getElementById('license-modal');
+        const infoModal = document.getElementById('info-modal');
         const accept = document.getElementById('welcome-accept');
-        const dismiss = document.getElementById('welcome-dismiss');
-        const okBtn = document.getElementById('welcome-ok');
-        if (!overlay || !okBtn || !accept) {
+        const licenseOk = document.getElementById('license-ok');
+        const infoOk = document.getElementById('info-ok');
+        if (!licenseModal || !infoModal || !licenseOk || !infoOk || !accept) {
             resolve();
             return;
         }
 
-        const syncOk = () => {
-            okBtn.disabled = !accept.checked;
+        const syncLicenseOk = () => {
+            licenseOk.disabled = !accept.checked;
         };
 
-        accept.addEventListener('change', syncOk);
-        syncOk();
+        accept.addEventListener('change', syncLicenseOk);
+        syncLicenseOk();
 
-        const hide = () => {
+        const showInfo = () => {
+            licenseModal.classList.add('hidden');
+            licenseModal.setAttribute('aria-hidden', 'true');
+            infoModal.classList.remove('hidden');
+            infoModal.setAttribute('aria-hidden', 'false');
+        };
+
+        const finish = () => {
+            infoModal.classList.add('hidden');
+            infoModal.setAttribute('aria-hidden', 'true');
+            resolve();
+        };
+
+        licenseOk.addEventListener('click', () => {
             if (!accept.checked) return;
-            if (dismiss?.checked) {
-                localStorage.setItem(WELCOME_STORAGE_KEY, '1');
-            }
-            overlay.classList.add('hidden');
-            overlay.setAttribute('aria-hidden', 'true');
-            resolve();
-        };
+            showInfo();
+        });
 
-        okBtn.addEventListener('click', hide);
+        infoOk.addEventListener('click', finish);
 
-        if (localStorage.getItem(WELCOME_STORAGE_KEY) === '1') {
-            resolve();
-            return;
-        }
-
-        overlay.classList.remove('hidden');
-        overlay.setAttribute('aria-hidden', 'false');
+        licenseModal.classList.remove('hidden');
+        licenseModal.setAttribute('aria-hidden', 'false');
     });
 }
 

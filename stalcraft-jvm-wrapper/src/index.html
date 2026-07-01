@@ -331,14 +331,14 @@
             <div class="footer-right">
                 <span class="footer-author" data-i18n="footerAuthor">by Nyrokume.dev</span>
                 <span class="footer-divider">//</span>
-                <span class="footer-copyright">v1.4.0</span>
+                <span class="footer-copyright">v1.5.0</span>
             </div>
         </footer>
     </div>
 
-    <!-- License agreement modal -->
-    <div class="welcome-modal hidden" id="welcome-modal" aria-hidden="true">
-        <div class="welcome-card" role="dialog" aria-labelledby="welcome-title">
+    <!-- Step 1: License agreement -->
+    <div class="welcome-modal hidden" id="license-modal" aria-hidden="true">
+        <div class="welcome-card custom-scroll" role="dialog" aria-labelledby="license-title">
             <div class="welcome-logo">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M12 2L2 7l10 5 10-5-10-5z"/>
@@ -346,19 +346,58 @@
                     <path d="M2 12l10 5 10-5"/>
                 </svg>
             </div>
-            <h2 class="welcome-title" id="welcome-title" data-i18n="welcomeTitle">License Agreement</h2>
+            <h2 class="welcome-title" id="license-title" data-i18n="welcomeTitle">License Agreement</h2>
             <p class="welcome-authors" data-i18n="welcomeAuthors">Authors: Nyrokume, SilentBless</p>
             <p class="welcome-body" data-i18n="welcomeBody">Program description</p>
-            <div class="welcome-license" data-i18n="welcomeLicense">License terms</div>
+            <div class="welcome-license">
+                <p data-i18n="welcomeLicenseP1">Free and non-commercial.</p>
+                <p data-i18n="welcomeLicenseP2">Disclaimer.</p>
+                <p data-i18n="welcomeLicenseP3">By continuing you accept.</p>
+            </div>
             <label class="welcome-check welcome-accept">
                 <input type="checkbox" id="welcome-accept">
                 <span data-i18n="welcomeAccept">I accept the license agreement</span>
             </label>
-            <label class="welcome-check">
-                <input type="checkbox" id="welcome-dismiss">
-                <span data-i18n="welcomeDontShow">Don't show on startup</span>
-            </label>
-            <button type="button" class="action-btn welcome-ok" id="welcome-ok" data-i18n="welcomeOk" disabled>Continue</button>
+            <button type="button" class="action-btn welcome-ok" id="license-ok" data-i18n="welcomeOk" disabled>Continue</button>
+        </div>
+    </div>
+
+    <!-- Step 2: Authors, support & contacts -->
+    <div class="welcome-modal hidden" id="info-modal" aria-hidden="true">
+        <div class="welcome-card custom-scroll" role="dialog" aria-labelledby="info-title">
+            <div class="welcome-logo">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                    <path d="M2 17l10 5 10-5"/>
+                    <path d="M2 12l10 5 10-5"/>
+                </svg>
+            </div>
+            <h2 class="welcome-title" id="info-title" data-i18n="welcomeInfoTitle">Authors & support</h2>
+            <p class="welcome-authors" data-i18n="welcomeAuthors">Authors: Nyrokume, SilentBless</p>
+            <div class="welcome-info-block">
+                <p class="welcome-support-line">
+                    <span data-i18n="welcomeSupport">Support the author</span>
+                    <strong class="welcome-nick">DementiyRezak</strong>
+                </p>
+            </div>
+            <div class="welcome-contacts">
+                <div class="welcome-contacts-title" data-i18n="welcomeContacts">Contacts</div>
+                <div class="welcome-contacts-links">
+                    <a href="https://github.com/Nyrokume" class="welcome-contact-link" target="_blank" rel="noopener noreferrer" title="GitHub">
+                        <span class="welcome-contact-label" data-i18n="contactGithub">GitHub</span>
+                        <span class="welcome-contact-value">Nyrokume</span>
+                    </a>
+                    <span class="welcome-contact-link welcome-contact-static" title="Discord">
+                        <span class="welcome-contact-label" data-i18n="contactDiscord">Discord</span>
+                        <span class="welcome-contact-value">@nyrokume</span>
+                    </span>
+                    <a href="https://t.me/nyrokume" class="welcome-contact-link" target="_blank" rel="noopener noreferrer" title="Telegram">
+                        <span class="welcome-contact-label" data-i18n="contactTelegram">Telegram</span>
+                        <span class="welcome-contact-value">@nyrokume</span>
+                    </a>
+                </div>
+            </div>
+            <button type="button" class="action-btn welcome-ok" id="info-ok" data-i18n="welcomeInfoOk">Got it</button>
         </div>
     </div>
 </body>

@@ -37,6 +37,16 @@ async function shot(page, name) {
     await page.screenshot({ path: path.join(outDir, name), fullPage: false });
 }
 
+async function dismissWelcome(page) {
+    await page.evaluate(() => {
+        const accept = document.getElementById('welcome-accept');
+        if (accept) accept.checked = true;
+        document.getElementById('license-ok')?.click();
+        document.getElementById('info-ok')?.click();
+    });
+    await page.waitForSelector('#info-modal.hidden', { timeout: 3000 }).catch(() => {});
+}
+
 async function main() {
     await mkdir(outDir, { recursive: true });
     const preview = await startPreview();
@@ -45,27 +55,35 @@ async function main() {
 
     try {
         await page.goto(base, { waitUntil: 'networkidle' });
-        await page.evaluate(() => {
-            localStorage.setItem('stalcraft-jvm-welcome-hidden', '1');
-            localStorage.setItem('stalcraft-jvm-lang', 'ru');
-        });
+        await page.evaluate(() => localStorage.setItem('stalcraft-jvm-lang', 'ru'));
         await page.reload({ waitUntil: 'networkidle' });
         await page.waitForSelector('.loading-screen.hidden', { timeout: 12000 }).catch(() => {});
+        await dismissWelcome(page);
         await page.waitForTimeout(500);
         await shot(page, 'main-ru.png');
 
         await page.evaluate(() => localStorage.setItem('stalcraft-jvm-lang', 'en'));
         await page.reload({ waitUntil: 'networkidle' });
         await page.waitForSelector('.loading-screen.hidden', { timeout: 12000 }).catch(() => {});
+        await dismissWelcome(page);
         await page.waitForTimeout(500);
         await shot(page, 'main-en.png');
 
+        await page.goto(base, { waitUntil: 'networkidle' });
         await page.evaluate(() => {
-            localStorage.removeItem('stalcraft-jvm-welcome-hidden');
-            document.getElementById('welcome-modal')?.classList.remove('hidden');
+            localStorage.setItem('stalcraft-jvm-lang', 'ru');
+            document.getElementById('license-modal')?.classList.remove('hidden');
         });
         await page.waitForTimeout(300);
         await shot(page, 'license-ru.png');
+
+        await page.evaluate(() => {
+            const accept = document.getElementById('welcome-accept');
+            if (accept) accept.checked = true;
+            document.getElementById('license-ok')?.click();
+        });
+        await page.waitForTimeout(300);
+        await shot(page, 'info-ru.png');
     } finally {
         await browser.close();
         preview.kill('SIGTERM');

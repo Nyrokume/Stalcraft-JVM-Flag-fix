@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.5.0 (2026-07-01)
+
+- Two-step startup: license acceptance → authors & contacts
+- Author contacts: GitHub, Discord, Telegram
+- In-game support nickname **DementiyRezak**
+- Custom yellow-orange scrollbars (UI + log)
+- License text: non-commercial, trusted sources only, no liability for third parties
+- Modals shown on every launch (no skip)
+
 ## v1.4.0 (2026-07-01)
 
 - Rebrand UI to **STALZONE** (titlebar, header, footer, i18n)
