@@ -147,9 +147,9 @@ test('settings round-trip via localStorage mock', () => {
 
         saveSettings({
 
-            v: 4,
+            v: 5,
 
-            mode: 'allowlist',
+            mode: 'blocklist',
 
             blocked: ['GAME-EU::GAME-EU-2'],
 
@@ -163,7 +163,7 @@ test('settings round-trip via localStorage mock', () => {
 
         const loaded = loadSettings();
 
-        assert.equal(loaded.mode, 'allowlist');
+        assert.equal(loaded.mode, 'blocklist');
 
         assert.deepEqual(loaded.blocked, ['GAME-EU::GAME-EU-2']);
 
@@ -380,6 +380,11 @@ test('loadSettings resets on corrupt JSON and version mismatch', () => {
         assert.equal(loadSettings().mode, 'blocklist');
         store['stalcraft-sb-settings'] = JSON.stringify({ v: 1, mode: 'allowlist' });
         assert.equal(loadSettings().mode, 'blocklist');
+        assert.equal(loadSettings().region, 'RU');
+        store['stalcraft-sb-settings'] = JSON.stringify({ v: 4, mode: 'allowlist', region: 'ALL', blocked: [] });
+        const migrated = loadSettings();
+        assert.equal(migrated.mode, 'blocklist');
+        assert.equal(migrated.region, 'RU');
     } finally {
         globalThis.localStorage = original;
     }

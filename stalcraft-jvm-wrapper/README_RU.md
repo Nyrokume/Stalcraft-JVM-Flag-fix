@@ -2,7 +2,7 @@
 
 Порт [stalcraft-jvm-optimization](https://github.com/EXBO-Community/stalcraft-jvm-optimization) для **STALZONE** (лаунчер EXBO).
 
-**Актуальный релиз:** [v1.5.4](https://github.com/Nyrokume/Stalcraft-JVM-Flag-fix/releases/latest) · `wrapper.zip`
+**Актуальный релиз:** [v1.5.5](https://github.com/Nyrokume/Stalcraft-JVM-Flag-fix/releases/latest) · `wrapper.zip`
 
 ## Скриншоты
 

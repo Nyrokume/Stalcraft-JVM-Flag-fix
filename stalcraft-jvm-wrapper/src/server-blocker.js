@@ -22,14 +22,14 @@ import {
 } from './server-blocker-logic.js';
 
 const SETTINGS_KEY = 'stalcraft-sb-settings';
-const SETTINGS_VERSION = 4;
+const SETTINGS_VERSION = 5;
 const RU_CATALOG_URL = 'https://backend.stalcraftx.ru/address_list?login=User';
 
 const DEFAULT_SETTINGS = {
     v: SETTINGS_VERSION,
     mode: 'blocklist',
     blocked: [],
-    region: 'ALL',
+    region: 'RU',
     showBlockedOnly: false,
     pings: {},
     preferredByPool: null,
@@ -106,11 +106,31 @@ export function loadSettings() {
         if (!raw) return structuredClone(DEFAULT_SETTINGS);
         const parsed = JSON.parse(raw);
         if (parsed.v !== SETTINGS_VERSION) {
+            if (parsed.v === 4) {
+                const region = FILTER_REGIONS.includes(parsed.region) && parsed.region !== 'ALL'
+                    ? parsed.region
+                    : 'RU';
+                return {
+                    ...DEFAULT_SETTINGS,
+                    blocked: Array.isArray(parsed.blocked) ? parsed.blocked : [],
+                    pings: parsed.pings && typeof parsed.pings === 'object' ? parsed.pings : {},
+                    preferredByPool: parsed.preferredByPool && typeof parsed.preferredByPool === 'object'
+                        ? parsed.preferredByPool
+                        : null,
+                    region,
+                    showBlockedOnly: Boolean(parsed.showBlockedOnly),
+                };
+            }
             return structuredClone(DEFAULT_SETTINGS);
         }
+        const region = FILTER_REGIONS.includes(parsed.region) && parsed.region !== 'ALL'
+            ? parsed.region
+            : 'RU';
         return {
             ...DEFAULT_SETTINGS,
             ...parsed,
+            mode: 'blocklist',
+            region,
             blocked: Array.isArray(parsed.blocked) ? parsed.blocked : [],
             pings: parsed.pings && typeof parsed.pings === 'object' ? parsed.pings : {},
             preferredByPool: parsed.preferredByPool && typeof parsed.preferredByPool === 'object'
@@ -136,8 +156,7 @@ function escapeHtml(s) {
 }
 
 function regionClass(region) {
-    const key = String(region).toLowerCase();
-    return key === 'all' ? 'sb-chip--all' : `sb-chip--${key}`;
+    return `sb-chip--${String(region).toLowerCase()}`;
 }
 
 function regionLabel(region, t) {
@@ -166,8 +185,6 @@ export async function initServerBlocker({ t, invoke = null }) {
         search: document.getElementById('sb-search'),
         showBlocked: document.getElementById('sb-show-blocked'),
         regionChips: document.getElementById('sb-region-chips'),
-        modeBlocklist: document.querySelector('input[name="sb-mode"][value="blocklist"]'),
-        modeAllowlist: document.querySelector('input[name="sb-mode"][value="allowlist"]'),
         blockedBadge: document.getElementById('sb-blocked-badge'),
         statusLabel: document.getElementById('sb-status-label'),
         progressViz: document.getElementById('sb-topbar-viz'),
@@ -190,13 +207,16 @@ export async function initServerBlocker({ t, invoke = null }) {
     }
 
     function isDenied(id) {
-        return settings.mode === 'allowlist' ? !isSelected(id) : isSelected(id);
+        return isSelected(id);
+    }
+
+    function serversInRegion(region = settings.region) {
+        return servers.filter((s) => s.filterRegion === region);
     }
 
     function filteredServers() {
         const q = (els.search?.value ?? '').trim().toLowerCase();
-        return servers.filter((srv) => {
-            if (settings.region !== 'ALL' && srv.filterRegion !== settings.region) return false;
+        return serversInRegion().filter((srv) => {
             if (!shouldShowServerInMenu(settings.pings, srv.id, { pinging })) return false;
             if (settings.showBlockedOnly && !isDenied(srv.id)) return false;
             if (!q) return true;
@@ -207,7 +227,7 @@ export async function initServerBlocker({ t, invoke = null }) {
 
     function applyAutoBlockBad(scope) {
         settings.blocked = mergeAutoBlockUnacceptable(
-            settings.mode,
+            'blocklist',
             scope,
             settings.pings,
             settings.blocked,
@@ -242,7 +262,7 @@ export async function initServerBlocker({ t, invoke = null }) {
     }
 
     function blockedHostsForFirewall() {
-        return resolveBlockedHosts(servers, settings.mode, settings.blocked);
+        return resolveBlockedHosts(servers, 'blocklist', settings.blocked);
     }
 
     function pingLabel(srv) {
@@ -336,22 +356,20 @@ export async function initServerBlocker({ t, invoke = null }) {
 
     async function pingVisibleIfNeeded() {
         if (import.meta.env.MODE === 'test') return;
-        const allInRegion = servers.filter(
-            (s) => settings.region === 'ALL' || s.filterRegion === settings.region,
-        );
-        const withPing = allInRegion.filter((s) => {
+        const scope = serversInRegion();
+        const withPing = scope.filter((s) => {
             const ms = settings.pings[s.id];
             return typeof ms === 'number' && ms <= 100;
         });
-        if (withPing.length >= Math.min(8, allInRegion.length)) return;
-        await runPing(allInRegion);
+        if (withPing.length >= Math.min(8, scope.length)) return;
+        await runPing(scope);
     }
 
     function applyAutoBest(scope) {
         const { allowed, preferredByPool } = pickBestPerRegionTopN(settings.pings, scope);
         if (!allowed.length) return false;
         settings.preferredByPool = preferredByPool;
-        settings.blocked = computeSelectionAllowed(settings.mode, scope, allowed);
+        settings.blocked = computeSelectionAllowed('blocklist', scope, allowed);
         saveSettings(settings);
         return true;
     }
@@ -496,7 +514,7 @@ export async function initServerBlocker({ t, invoke = null }) {
     }
 
     function updateBlockingButtons() {
-        const canSelect = hasBlockingSelection(servers, settings.mode, settings.blocked);
+        const canSelect = hasBlockingSelection(servers, 'blocklist', settings.blocked);
         if (els.startBtn) {
             els.startBtn.disabled = blockingBusy || blockingActive || !invoke || !canSelect;
         }
@@ -507,10 +525,10 @@ export async function initServerBlocker({ t, invoke = null }) {
 
     function renderRegionChips() {
         if (!els.regionChips) return;
-        const chips = [
-            { id: 'ALL', label: t('sbRegionAll') },
-            ...FILTER_REGIONS.map((r) => ({ id: r, label: r })),
-        ];
+        const chips = FILTER_REGIONS.map((r) => ({
+            id: r,
+            label: regionLabel(r, t),
+        }));
         els.regionChips.innerHTML = chips.map((c) => `
             <button type="button" class="sb-chip ${regionClass(c.id)}${settings.region === c.id ? ' active' : ''}"
                 data-region="${escapeHtml(c.id)}">${escapeHtml(c.label)}</button>
@@ -606,11 +624,6 @@ export async function initServerBlocker({ t, invoke = null }) {
         });
     }
 
-    function syncModeRadios() {
-        if (els.modeBlocklist) els.modeBlocklist.checked = settings.mode === 'blocklist';
-        if (els.modeAllowlist) els.modeAllowlist.checked = settings.mode === 'allowlist';
-    }
-
     function setActionLoading(loading) {
         if (els.pingBtn) els.pingBtn.disabled = loading;
         if (els.autoBestBtn) els.autoBestBtn.disabled = loading;
@@ -621,7 +634,6 @@ export async function initServerBlocker({ t, invoke = null }) {
         renderStatus();
         renderRegionChips();
         renderServerList();
-        syncModeRadios();
         updateBlockingButtons();
         if (els.showBlocked) els.showBlocked.checked = settings.showBlockedOnly;
     }
@@ -640,17 +652,6 @@ export async function initServerBlocker({ t, invoke = null }) {
         renderServerList();
     });
 
-    document.querySelectorAll('input[name="sb-mode"]').forEach((radio) => {
-        radio.addEventListener('change', () => {
-            if (!radio.checked) return;
-            settings.mode = radio.value;
-            saveSettings(settings);
-            renderBadge();
-            updateBlockingButtons();
-            renderServerList();
-        });
-    });
-
     els.resetBtn?.addEventListener('click', () => {
         settings = structuredClone(DEFAULT_SETTINGS);
         saveSettings(settings);
@@ -660,15 +661,13 @@ export async function initServerBlocker({ t, invoke = null }) {
 
     els.pingBtn?.addEventListener('click', async () => {
         setActionLoading(true);
-        const allInRegion = servers.filter((s) =>
-            settings.region === 'ALL' || s.filterRegion === settings.region,
-        );
-        const ok = await runPing(allInRegion);
+        const scope = serversInRegion();
+        const ok = await runPing(scope);
         if (ok > 0) {
-            const hidden = countHiddenServers(allInRegion, settings.pings);
+            const hidden = countHiddenServers(scope, settings.pings);
             statusMessage = hidden > 0
-                ? t('sbPingDoneHidden', { ok, total: allInRegion.length, hidden })
-                : t('sbPingDone', { ok, total: allInRegion.length });
+                ? t('sbPingDoneHidden', { ok, total: scope.length, hidden })
+                : t('sbPingDone', { ok, total: scope.length });
         } else if (!statusMessage) {
             statusMessage = t('sbAutoBestNoPing');
         }
@@ -677,20 +676,18 @@ export async function initServerBlocker({ t, invoke = null }) {
     });
 
     els.autoBestBtn?.addEventListener('click', async () => {
-        const allInRegion = servers.filter((s) =>
-            settings.region === 'ALL' || s.filterRegion === settings.region,
-        );
+        const scope = serversInRegion();
         setActionLoading(true);
-        const poolTotal = new Set(allInRegion.map((s) => s.pool)).size;
-        if (poolsWithValidPing(settings.pings, allInRegion) < poolTotal) {
-            await runPing(allInRegion);
+        const poolTotal = new Set(scope.map((s) => s.pool)).size;
+        if (poolsWithValidPing(settings.pings, scope) < poolTotal) {
+            await runPing(scope);
         }
-        applyAutoBlockBad(allInRegion);
-        const ok = applyAutoBest(allInRegion);
+        applyAutoBlockBad(scope);
+        const ok = applyAutoBest(scope);
         if (!ok) {
             statusMessage = t('sbAutoBestNoPing');
         } else {
-            const hidden = countHiddenServers(allInRegion, settings.pings);
+            const hidden = countHiddenServers(scope, settings.pings);
             statusMessage = hidden > 0
                 ? t('sbAutoBestDoneHidden', {
                     pools: Object.keys(settings.preferredByPool ?? {}).length,

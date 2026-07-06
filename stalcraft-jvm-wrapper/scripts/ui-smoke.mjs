@@ -119,15 +119,14 @@ try {
         await page.waitForSelector('#page-server-blocker.active', { timeout: 3000 });
         if (!(await page.locator('.sb-topbar').isVisible())) throw new Error('missing topbar');
         const chips = await page.locator('.sb-chip').count();
-        if (chips !== 5) throw new Error(`expected 5 region chips (ALL+RU+EU+NA+SEA), got ${chips}`);
+        if (chips !== 4) throw new Error(`expected 4 region chips (RU+EU+NA+SEA), got ${chips}`);
         await page.locator('#sb-reset-btn').click();
         await page.waitForTimeout(120);
     });
 
-    await check('Server cards ALL = 77', async () => {
-        await page.locator('.sb-chip[data-region="ALL"]').click();
+    await check('Server cards default RU = 59', async () => {
         const cards = await page.locator('.sb-card').count();
-        if (cards !== 77) throw new Error(`expected 77 cards, got ${cards}`);
+        if (cards !== 59) throw new Error(`expected 59 RU cards by default, got ${cards}`);
     });
 
     await check('Region counts RU/EU/NA/SEA', async () => {
@@ -146,7 +145,7 @@ try {
     });
 
     await check('Block toggle updates badge', async () => {
-        await page.locator('.sb-chip[data-region="ALL"]').click();
+        await page.locator('.sb-chip[data-region="RU"]').click();
         await page.locator('#sb-reset-btn').click();
         await page.waitForTimeout(100);
         await page.locator('.sb-switch').first().click();
@@ -156,7 +155,7 @@ try {
     });
 
     await check('Show blocked filter', async () => {
-        await page.locator('.sb-chip[data-region="ALL"]').click();
+        await page.locator('.sb-chip[data-region="RU"]').click();
         await page.locator('label.sb-check').click();
         await page.waitForTimeout(100);
         const cards = await page.locator('.sb-card').count();
@@ -165,7 +164,7 @@ try {
     });
 
     await check('Search filter', async () => {
-        await page.locator('.sb-chip[data-region="ALL"]').click();
+        await page.locator('.sb-chip[data-region="EU"]').click();
         await page.locator('#sb-search').fill('WAW-ROXY');
         await page.waitForTimeout(100);
         const cards = await page.locator('.sb-card').count();
@@ -175,7 +174,7 @@ try {
     });
 
     await check('Ping progress and colored classes', async () => {
-        await page.locator('.sb-chip[data-region="ALL"]').click();
+        await page.locator('.sb-chip[data-region="RU"]').click();
         await page.locator('#sb-ping-btn').click();
         await page.waitForFunction(
             () => document.getElementById('sb-topbar-viz')?.classList.contains('is-active'),
@@ -194,8 +193,7 @@ try {
         if (hidden > 0) throw new Error(`bad ping cards should be hidden, got ${hidden}`);
     });
 
-    await check('Auto best blocklist EU', async () => {
-        await page.locator('label.sb-mode-option:has(input[value="blocklist"])').click();
+    await check('Auto best EU', async () => {
         await page.locator('.sb-chip[data-region="EU"]').click();
         await page.locator('#sb-auto-best-btn').click();
         await page.waitForTimeout(1200);
@@ -205,19 +203,7 @@ try {
         if (blocked !== 8) throw new Error(`expected 8 blocked in EU scope, got ${blocked}`);
     });
 
-    await check('Auto best allowlist EU', async () => {
-        await page.locator('label.sb-mode-option:has(input[value="allowlist"])').click();
-        await page.locator('.sb-chip[data-region="EU"]').click();
-        await page.locator('#sb-auto-best-btn').click();
-        await page.waitForTimeout(1200);
-        const best = await page.locator('.sb-card--best').count();
-        if (best !== 2) throw new Error(`expected 2 best cards, got ${best}`);
-        const allowedInScope = await page.locator('.sb-card .sb-card-access:not(.is-blocked)').count();
-        if (allowedInScope !== 2) throw new Error(`allowlist: expected 2 allowed in EU, got ${allowedInScope}`);
-    });
-
     await check('Blocking mock start/stop', async () => {
-        await page.locator('label.sb-mode-option:has(input[value="blocklist"])').click();
         await page.locator('.sb-chip[data-region="EU"]').click();
         await page.locator('#sb-auto-best-btn').click();
         await page.waitForTimeout(800);
@@ -235,19 +221,21 @@ try {
     await check('Refresh RU button', async () => {
         if (!(await page.locator('#sb-refresh-btn').isVisible())) throw new Error('missing refresh btn');
         await page.locator('#sb-reset-btn').click();
-        await page.locator('.sb-chip[data-region="ALL"]').click();
+        await page.locator('.sb-chip[data-region="RU"]').click();
         await page.locator('#sb-refresh-btn').click();
         await page.waitForTimeout(500);
         const cards = await page.locator('.sb-card').count();
-        if (cards !== 77) throw new Error(`expected 77 cards after refresh, got ${cards}`);
+        if (cards !== 59) throw new Error(`expected 59 RU cards after refresh, got ${cards}`);
     });
 
-    await check('All regions visible on ALL filter', async () => {
+    await check('Region switch shows one section', async () => {
         await page.locator('#sb-search').fill('');
-        await page.locator('.sb-chip[data-region="ALL"]').click();
+        await page.locator('.sb-chip[data-region="EU"]').click();
         await page.waitForTimeout(100);
         const regions = await page.locator('.sb-region').count();
-        if (regions !== 4) throw new Error(`expected 4 region sections, got ${regions}`);
+        if (regions !== 1) throw new Error(`expected 1 region section for EU, got ${regions}`);
+        const cards = await page.locator('.sb-card').count();
+        if (cards !== 10) throw new Error(`expected 10 EU cards, got ${cards}`);
     });
 
     await check('Server blocker i18n EN', async () => {

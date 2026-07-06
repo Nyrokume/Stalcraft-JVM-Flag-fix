@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/nicklasgossman/tauri/main/crates/tauri-config-schema/schema.json",
   "productName": "STALZONE JVM Wrapper",
-  "version": "1.5.4",
+  "version": "1.5.5",
   "identifier": "com.stalcraft.jvm-wrapper",
   "build": {
     "frontendDist": "../dist",

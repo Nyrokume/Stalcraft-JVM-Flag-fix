@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.5.5 (2026-07-07)
+
+- **Server Blocker**: removed allowlist mode — blocklist only
+- **Server Blocker**: removed «All» region filter — RU / EU / NA / SEA with one region shown at a time
+- Settings migration v5: legacy `allowlist` and `region: ALL` → `blocklist` + `RU`
+
 ## v1.5.4 (2026-07-07)
 
 - **Server Blocker**: first-visit warning (firewall vs WinDivert, ExitLag/GearUP conflict, planned MITM-backend)
