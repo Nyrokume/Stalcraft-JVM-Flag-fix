@@ -82,6 +82,15 @@ pub fn configs_dir() -> PathBuf {
     wrapper_home().join("configs")
 }
 
+/// Example JVM presets shipped beside the app (or project `examples/` in dev).
+pub fn examples_dir() -> PathBuf {
+    let beside = wrapper_home().join("examples");
+    if beside.is_dir() {
+        return beside;
+    }
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../examples")
+}
+
 pub fn logs_dir() -> PathBuf {
     wrapper_home().join("logs")
 }

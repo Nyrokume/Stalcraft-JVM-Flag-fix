@@ -2,7 +2,7 @@
 
 Порт [stalcraft-jvm-optimization](https://github.com/EXBO-Community/stalcraft-jvm-optimization) для **STALZONE** (лаунчер EXBO).
 
-**Актуальный релиз:** [v1.5.1](https://github.com/Nyrokume/Stalcraft-JVM-Flag-fix/releases/latest) · `wrapper.zip`
+**Актуальный релиз:** [v1.5.4](https://github.com/Nyrokume/Stalcraft-JVM-Flag-fix/releases/latest) · `wrapper.zip`
 
 ## Скриншоты
 
@@ -18,6 +18,7 @@
   service.exe                 ← перехватчик IFEO (обязателен)
   configs\default.json
   logs\wrapper.log
+  examples\                   ← пресеты JVM
 ```
 
 ## IFEO
@@ -41,21 +42,39 @@
 
 **Не запускайте `service.exe` вручную.**
 
-## v1.5.1
+## Блокировка серверов (v1.5.4)
 
-- Паритет с [EXBO v1.1.2](https://github.com/EXBO-Community/stalcraft-jvm-optimization/releases/tag/v1.1.2): `stalzone*` канон, `stalcraft*` fallback
-- Типизированные пути лаунчеров (`paths.rs`), `wrapper_home` → `%AppData%\Roaming\EXBO\jvm_wrapper`
-- Лог `config_fallback`, канонизация рабочей папки процесса
-- Два окна при старте: лицензия → авторы и контакты (каждый запуск)
-- Определение железа: CPUID, WMI, реестр
-- IFEO через `service.exe`, UAC из GUI
-- Кастомная иконка, оранжевые скроллбары
-- Контакты в приложении: GitHub, Discord, Telegram
+Вторая вкладка: пинг 77 туннелей, auto-best по регионам, блокировка лишних серверов.
+
+| Тема | Детали |
+|------|--------|
+| **Сейчас** | Windows Firewall, исходящие правила на портах **29450–29460** (нужен UAC) |
+| **Не используется** | WinDivert на клиенте — конфликт с ExitLag/GearUP |
+| **В планах** | Серверный MITM через `backend-*.stalzone` и API `/address_list` |
+| **Первый вход** | Модальное предупреждение о firewall, бустерах и roadmap |
+| **После пинга** | Серверы с пингом >100 мс и недоступные скрываются и блокируются |
+
+Архитектура: [docs/server-blocker-architecture-ru.md](docs/server-blocker-architecture-ru.md)
+
+## Пресеты JVM (EXBO)
+
+В `examples/` внутри `wrapper.zip`: `balanced_mid`, `slow_ddr`, `throughput_v110`, `x3d_v110`, `8khz`, `removed_fast_ddr`.
+
+Импорт через вкладку **КОНФИГУРАЦИЯ** (чипы) или копирование в `configs\`.
+
+## v1.5.4
+
+- Блокировка серверов GA + предупреждение при первом открытии
+- Скрытие плохого пинга, прогресс-бар и волна в топбаре
+- Пресеты JVM из истории релизов EXBO
+- Паритет [EXBO v1.1.2](https://github.com/EXBO-Community/stalcraft-jvm-optimization/releases/tag/v1.1.2)
+- IFEO через `service.exe`, определение железа, лицензия при первом запуске
 
 ## Сборка
 
 ```powershell
 npm install
+npm test
 npm run build:prod
 ```
 

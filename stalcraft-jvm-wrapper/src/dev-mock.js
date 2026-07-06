@@ -1,5 +1,7 @@
 /** Browser-only dev mocks (Vite without Tauri webview). */
 
+import { mockPingMs } from './server-blocker-logic.js';
+
 const MOCK_SYSTEM = {
     cpu_name: 'AMD Ryzen 7 5800X (dev mock)',
     gpu_name: 'NVIDIA GeForce RTX 3070',
@@ -26,6 +28,18 @@ stalcraftw.exe: ok
 java.exe: ok
 javaw.exe: ok`;
 
+const MOCK_BLOCKING = { active: false };
+
+const MOCK_EXAMPLES = [
+    'balanced_mid',
+    'slow_ddr',
+    'throughput_v110',
+    'x3d_v110',
+    '8khz',
+    'removed_fast_ddr',
+];
+const MOCK_IMPORTED = new Set(['default', '8khz']);
+
 export function createDevMockInvoke() {
     return async (cmd, args = {}) => {
         switch (cmd) {
@@ -35,10 +49,20 @@ export function createDevMockInvoke() {
                 return MOCK_STATUS;
             case 'list_configs':
                 return {
-                    names: ['default.json', '8khz.json'],
-                    active: 'default.json',
+                    names: [...MOCK_IMPORTED],
+                    active: 'default',
                     active_exists: true,
                 };
+            case 'list_examples':
+                return { names: [...MOCK_EXAMPLES] };
+            case 'import_example_config': {
+                const name = args.name ?? '';
+                if (!MOCK_EXAMPLES.includes(name)) {
+                    throw new Error(`example not found: ${name}`);
+                }
+                MOCK_IMPORTED.add(name);
+                return `Imported preset: ${name}.json`;
+            }
             case 'read_wrapper_log_tail':
                 return '[dev] mock wrapper.log\n[dev] jvm_mode=MOCK';
             case 'install_ifeo':
@@ -46,9 +70,27 @@ export function createDevMockInvoke() {
             case 'uninstall_ifeo':
                 return 'IFEO uninstalled (dev mock).';
             case 'select_config':
-                return `Active config set to: ${args.name ?? 'default.json'}`;
+                return `Active config set to: ${args.name ?? 'default'}`;
             case 'regenerate_config':
                 return 'default.json regenerated (dev mock).';
+            case 'ping_servers':
+                return (args.targets ?? []).map((t) => ({
+                    id: t.id,
+                    ms: mockPingMs(t.host, t.port),
+                }));
+            case 'start_server_blocking':
+                MOCK_BLOCKING.active = true;
+                MOCK_BLOCKING.ips = (args.ips ?? []).length;
+                return `Blocked ${MOCK_BLOCKING.ips} IP(s) (dev mock)`;
+            case 'stop_server_blocking':
+                MOCK_BLOCKING.active = false;
+                MOCK_BLOCKING.ips = 0;
+                return 'Removed firewall rules (dev mock)';
+            case 'server_blocking_active':
+                return {
+                    active: MOCK_BLOCKING.active,
+                    rule_count: MOCK_BLOCKING.active ? (MOCK_BLOCKING.ips ?? 0) * 2 : 0,
+                };
             default:
                 throw new Error(`Unknown mock command: ${cmd}`);
         }

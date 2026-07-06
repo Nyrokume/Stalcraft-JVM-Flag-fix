@@ -1,5 +1,30 @@
 # Changelog
 
+## v1.5.4 (2026-07-07)
+
+- **Server Blocker**: first-visit warning (firewall vs WinDivert, ExitLag/GearUP conflict, planned MITM-backend)
+- **Server Blocker**: hide servers with ping >100 ms or not found; auto-block bad hosts after ping
+- **Server Blocker**: progress bar + waveform in topbar during ping / firewall apply
+- JVM presets from EXBO release history (`examples/`: balanced_mid, slow_ddr, throughput_v110, x3d_v110, 8khz, removed_fast_ddr)
+- UI: one-click preset import; `list_examples` / `import_example_config` IPC
+- Docs: `docs/server-blocker-architecture-ru.md` (MITM-backend plan per SilentBless)
+
+## v1.5.3 (2026-07-07)
+
+- JVM presets from [EXBO stalcraft-jvm-optimization](https://github.com/EXBO-Community/stalcraft-jvm-optimization) release history in `examples/`
+- Presets: `balanced_mid`, `slow_ddr`, `throughput_v110`, `x3d_v110`, `8khz`, `removed_fast_ddr`
+- UI: one-click import into `configs/`; `list_examples` / `import_example_config` IPC
+
+## v1.5.2 (2026-07-06)
+
+- **Server Blocker GA**: Windows Firewall blocking on ports 29450–29460 (`STALZONE-SB-*` rules)
+- 77 servers (RU live catalog + EU/NA/SEA), RU sub-zones by pool, TCP ping with colored latency
+- Auto-best per pool; blocklist and allowlist modes (allowlist + auto-best fix)
+- UAC elevation for firewall apply/clear (CLI `--sb-apply` / `--sb-clear`)
+- Batch PowerShell firewall scripts; ping concurrency cap (10 threads)
+- Welcome modals shown once (`stalcraft-jvm-welcome-v1`); removed nav «Скоро» badge
+- Tests: expanded Rust unit tests, JS logic tests, UI smoke with preview lifecycle
+
 ## v1.5.1 (2026-07-06)
 
 - Parity with [EXBO stalcraft-jvm-optimization v1.1.2](https://github.com/EXBO-Community/stalcraft-jvm-optimization/releases/tag/v1.1.2)

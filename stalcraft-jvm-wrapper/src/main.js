@@ -1,6 +1,7 @@
 // main.js — slim GUI (Go cli parity)
 
 import { t, loadingMessages, applyI18n, setupLangSwitcher } from './i18n.js';
+import { initServerBlocker } from './server-blocker.js';
 
 let invoke;
 let isTauri = false;
@@ -14,8 +15,23 @@ let memTier, memSpeed;
 let btnMinimize, btnMaximize, btnClose;
 let btnMinimizeLoading, btnMaximizeLoading, btnCloseLoading;
 let loadingScreen, loadingProgress, loadingStatus;
-let configSelect, configActiveLabel, regenerateConfigBtn, selectConfigBtn;
+let configSelect, configActiveLabel, regenerateConfigBtn, selectConfigBtn, configPresetGrid;
+
+const PRESET_ORDER = [
+    'balanced_mid',
+    'slow_ddr',
+    'throughput_v110',
+    'x3d_v110',
+    '8khz',
+    'removed_fast_ddr',
+];
 let ifeoStatusText;
+
+const APP_PAGES = ['jvm', 'server-blocker'];
+const PAGE_STORAGE_KEY = 'stalcraft-jvm-page';
+const WELCOME_STORAGE_KEY = 'stalcraft-jvm-welcome-v1';
+const SB_WARNING_STORAGE_KEY = 'stalcraft-jvm-sb-warning-v1';
+let serverBlockerApi = null;
 
 function hasBackend() {
     return isTauri || useMockBackend;
@@ -39,7 +55,7 @@ async function initTauriAPI() {
         return;
     }
 
-    if (import.meta.env.DEV) {
+    if (import.meta.env.DEV || import.meta.env.MODE === 'test') {
         const { createDevMockInvoke, showDevBanner } = await import('./dev-mock.js');
         invoke = createDevMockInvoke();
         useMockBackend = true;
@@ -91,6 +107,7 @@ function initElements() {
     configActiveLabel = document.getElementById('config-active-label');
     regenerateConfigBtn = document.getElementById('regenerate-config-btn');
     selectConfigBtn = document.getElementById('select-config-btn');
+    configPresetGrid = document.getElementById('config-preset-grid');
 }
 
 function setupWindowControls(minimizeBtn, maximizeBtn, closeBtn) {
@@ -343,6 +360,143 @@ async function refreshConfigList() {
     }
 }
 
+function presetLabel(name) {
+    const key = `preset_${name}`;
+    const label = t(key);
+    return label !== key ? label : name;
+}
+
+function presetHint(name) {
+    const key = `presetHint_${name}`;
+    const hint = t(key);
+    return hint !== key ? hint : presetLabel(name);
+}
+
+async function refreshPresetGrid() {
+    if (!configPresetGrid || !hasBackend()) return;
+    try {
+        const [examples, saved] = await Promise.all([
+            invoke('list_examples'),
+            invoke('list_configs'),
+        ]);
+        const names = examples.names ?? [];
+        const savedSet = new Set(saved.names ?? []);
+        configPresetGrid.replaceChildren();
+        const ordered = [
+            ...PRESET_ORDER.filter((n) => names.includes(n)),
+            ...names.filter((n) => !PRESET_ORDER.includes(n)),
+        ];
+        for (const name of ordered) {
+            const chip = document.createElement('button');
+            chip.type = 'button';
+            chip.className = `config-preset-chip${savedSet.has(name) ? ' active' : ''}`;
+            chip.textContent = presetLabel(name);
+            chip.title = presetHint(name);
+            chip.addEventListener('click', () => importPreset(name));
+            configPresetGrid.appendChild(chip);
+        }
+    } catch (e) {
+        console.error('Failed to load JVM presets:', e);
+    }
+}
+
+async function importPreset(name) {
+    if (!hasBackend()) return;
+    addLog(t('logImportPreset', { name }), 'info');
+    try {
+        const result = await invoke('import_example_config', { name });
+        addLog(result, 'success');
+        await refreshConfigList();
+        await refreshPresetGrid();
+    } catch (e) {
+        addLog(t('logImportFail', { err: e }), 'error');
+    }
+}
+
+function switchAppPage(pageId) {
+    if (!APP_PAGES.includes(pageId)) pageId = 'jvm';
+    document.querySelectorAll('.app-page').forEach((el) => {
+        const active = el.id === `page-${pageId}`;
+        el.classList.toggle('active', active);
+        el.classList.toggle('hidden', !active);
+    });
+    document.querySelectorAll('.app-nav-btn').forEach((btn) => {
+        btn.classList.toggle('active', btn.dataset.page === pageId);
+    });
+    try {
+        localStorage.setItem(PAGE_STORAGE_KEY, pageId);
+    } catch (_) {}
+    if (pageId === 'server-blocker') {
+        showServerBlockerWarningIfNeeded().then(() => {
+            serverBlockerApi?.pingVisibleIfNeeded?.();
+        });
+    }
+}
+
+function showServerBlockerWarningIfNeeded() {
+    return new Promise((resolve) => {
+        try {
+            if (localStorage.getItem(SB_WARNING_STORAGE_KEY) === '1') {
+                resolve();
+                return;
+            }
+        } catch (_) {
+            resolve();
+            return;
+        }
+
+        const modal = document.getElementById('sb-warning-modal');
+        const accept = document.getElementById('sb-warning-accept');
+        const okBtn = document.getElementById('sb-warning-ok');
+        if (!modal || !accept || !okBtn) {
+            resolve();
+            return;
+        }
+
+        const syncOk = () => {
+            okBtn.disabled = !accept.checked;
+        };
+        accept.addEventListener('change', syncOk);
+        syncOk();
+
+        modal.classList.remove('hidden');
+        modal.setAttribute('aria-hidden', 'false');
+
+        const finish = () => {
+            modal.classList.add('hidden');
+            modal.setAttribute('aria-hidden', 'true');
+            try {
+                localStorage.setItem(SB_WARNING_STORAGE_KEY, '1');
+            } catch (_) {}
+            resolve();
+        };
+
+        okBtn.addEventListener('click', finish, { once: true });
+    });
+}
+
+function setupAppNav() {
+    const saved = (() => {
+        try {
+            const p = localStorage.getItem(PAGE_STORAGE_KEY);
+            return APP_PAGES.includes(p) ? p : 'jvm';
+        } catch (_) {
+            return 'jvm';
+        }
+    })();
+    switchAppPage(saved);
+    document.querySelectorAll('.app-nav-btn').forEach((btn) => {
+        btn.addEventListener('click', () => switchAppPage(btn.dataset.page));
+    });
+}
+
+function setupServerBlocker() {
+    return initServerBlocker({
+        t,
+        invoke: hasBackend() ? invoke : null,
+    });
+}
+
 async function runSystemRefresh({ showLoadingSpinner = true } = {}) {
     if (!hasBackend() || !refreshBtn) return;
     if (showLoadingSpinner) setRefreshLoading(true);
@@ -363,6 +517,7 @@ async function runSystemRefresh({ showLoadingSpinner = true } = {}) {
         if (largePages) addLog(t('logLargePages'), 'success');
 
         await refreshConfigList();
+        await refreshPresetGrid();
         await pullWrapperLogToUi();
     } catch (e) {
         addLog(formatDetectError(e), 'error');
@@ -469,10 +624,16 @@ function setupEventListeners() {
         }
     });
 
+    setupAppNav();
 }
 
 function setupWelcomeModal() {
     return new Promise((resolve) => {
+        if (localStorage.getItem(WELCOME_STORAGE_KEY) === '1') {
+            resolve();
+            return;
+        }
+
         const licenseModal = document.getElementById('license-modal');
         const infoModal = document.getElementById('info-modal');
         const accept = document.getElementById('welcome-accept');
@@ -500,6 +661,9 @@ function setupWelcomeModal() {
         const finish = () => {
             infoModal.classList.add('hidden');
             infoModal.setAttribute('aria-hidden', 'true');
+            try {
+                localStorage.setItem(WELCOME_STORAGE_KEY, '1');
+            } catch (_) {}
             resolve();
         };
 
@@ -545,11 +709,16 @@ window.__onLangChange = async () => {
         } catch (_) {}
     }
     await refreshConfigList();
+    await refreshPresetGrid();
+    serverBlockerApi?.render();
 };
+
+window.__renderServerBlocker = () => serverBlockerApi?.render();
 
 window.addEventListener('DOMContentLoaded', async () => {
     await initTauriAPI();
     initElements();
+    serverBlockerApi = await setupServerBlocker();
     setupLangSwitcher();
     await animateLoadingScreen();
     setupEventListeners();

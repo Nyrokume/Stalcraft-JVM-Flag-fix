@@ -40,6 +40,51 @@ fn main() {
                 }
                 std::process::exit(0);
             }
+            "--sb-apply" => {
+                let path = match args.get(2) {
+                    Some(p) => p,
+                    None => {
+                        eprintln!("[sb-apply] missing path");
+                        std::process::exit(1);
+                    }
+                };
+                let data = match std::fs::read_to_string(path) {
+                    Ok(d) => d,
+                    Err(e) => {
+                        eprintln!("[sb-apply] read failed: {}", e);
+                        std::process::exit(1);
+                    }
+                };
+                let ips: Vec<String> = match serde_json::from_str(&data) {
+                    Ok(v) => v,
+                    Err(e) => {
+                        eprintln!("[sb-apply] parse failed: {}", e);
+                        std::process::exit(1);
+                    }
+                };
+                match stalcraft_jvm_wrapper::server_block::apply_blocks(&ips) {
+                    Ok(msg) => {
+                        eprintln!("[sb-apply] {}", msg);
+                        std::process::exit(0);
+                    }
+                    Err(e) => {
+                        eprintln!("[sb-apply] failed: {}", e);
+                        std::process::exit(1);
+                    }
+                }
+            }
+            "--sb-clear" => {
+                match stalcraft_jvm_wrapper::server_block::clear_rules() {
+                    Ok(n) => {
+                        eprintln!("[sb-clear] removed {} rule(s)", n);
+                        std::process::exit(0);
+                    }
+                    Err(e) => {
+                        eprintln!("[sb-clear] failed: {}", e);
+                        std::process::exit(1);
+                    }
+                }
+            }
             _ => {}
         }
     }
@@ -52,10 +97,16 @@ fn main() {
             uninstall_ifeo,
             check_status,
             list_configs,
+            list_examples,
+            import_example_config,
             select_config,
             regenerate_config,
             get_active_config,
             read_wrapper_log_tail,
+            ping_servers,
+            start_server_blocking,
+            stop_server_blocking,
+            server_blocking_active,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

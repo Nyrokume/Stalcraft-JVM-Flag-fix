@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>STALZONE JVM Wrapper</title>
     <link rel="stylesheet" href="./assets/styles.css">
+    <link rel="stylesheet" href="./assets/server-blocker.css">
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <script type="module" src="./main.js"></script>
 </head>
@@ -127,7 +128,24 @@
             </div>
         </header>
 
-        <!-- Main Content: dense 3-col top + full-width log -->
+        <nav class="app-nav" aria-label="Main navigation">
+            <button type="button" class="app-nav-btn active" data-page="jvm" id="nav-jvm">
+                <svg class="app-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                </svg>
+                <span data-i18n="navJvm">JVM Optimization</span>
+            </button>
+            <button type="button" class="app-nav-btn" data-page="server-blocker" id="nav-server-blocker">
+                <svg class="app-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+                <span data-i18n="navServerBlocker">Server Blocker</span>
+            </button>
+        </nav>
+
+        <!-- Page: JVM -->
+        <div class="app-page active" id="page-jvm">
         <main class="main-content main-content--dense">
             <div class="main-grid-top">
                 <div class="main-col main-col--exec">
@@ -182,6 +200,9 @@
                                 <span data-i18n="regen">Regen</span>
                             </button>
                         </div>
+
+                        <div class="config-subhead" data-i18n="jvmPresets">JVM presets (EXBO)</div>
+                        <div class="config-preset-grid" id="config-preset-grid" role="list"></div>
                     </div>
                 </section>
                 </div>
@@ -322,6 +343,110 @@
                 </section>
             </div>
         </main>
+        </div>
+
+        <!-- Page: Server Blocker -->
+        <div class="app-page hidden" id="page-server-blocker">
+            <main class="sb-shell">
+                <div class="sb-topbar">
+                    <div class="sb-topbar-left">
+                        <h2 class="sb-topbar-title" data-i18n="sbHeroTitle">Server Blocker</h2>
+                        <span class="sb-status-label" id="sb-status-label" data-i18n="sbStatusIdle">NOT CONNECTED</span>
+                    </div>
+                    <div class="sb-topbar-viz" id="sb-topbar-viz" aria-hidden="true">
+                        <div class="sb-viz-track" role="progressbar" aria-valuemin="0" aria-valuemax="100">
+                            <div class="sb-viz-fill" id="sb-viz-fill"></div>
+                            <div class="sb-viz-shimmer" id="sb-viz-shimmer"></div>
+                        </div>
+                        <canvas class="sb-viz-wave" id="sb-viz-wave" width="140" height="32" aria-hidden="true"></canvas>
+                        <span class="sb-viz-label" id="sb-viz-label"></span>
+                    </div>
+                    <span class="sb-topbar-badge" id="sb-blocked-badge" title="Blocked">0</span>
+                </div>
+
+                <div class="sb-layout">
+                    <aside class="sb-sidebar">
+                        <nav class="sb-menu">
+                            <div class="sb-menu-section">
+                                <span class="sb-menu-label" data-i18n="sbFilterRegion">Region</span>
+                                <div class="sb-chips" id="sb-region-chips"></div>
+                            </div>
+                            <div class="sb-menu-section">
+                                <span class="sb-menu-label" data-i18n="sbMode">Block mode</span>
+                                <div class="sb-mode-list">
+                                    <label class="sb-mode-option">
+                                        <input type="radio" name="sb-mode" value="blocklist" checked>
+                                        <span class="sb-mode-box">
+                                            <span class="sb-mode-name" data-i18n="sbModeBlocklist">Block selected</span>
+                                        </span>
+                                    </label>
+                                    <label class="sb-mode-option">
+                                        <input type="radio" name="sb-mode" value="allowlist">
+                                        <span class="sb-mode-box">
+                                            <span class="sb-mode-name" data-i18n="sbModeAllowlist">Allow only selected</span>
+                                        </span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="sb-menu-section sb-menu-section--actions">
+                                <button type="button" class="sb-btn sb-btn--primary" id="sb-start-btn" disabled>
+                                    <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                                    <span data-i18n="sbStartBlock">Start blocking</span>
+                                </button>
+                                <button type="button" class="sb-btn sb-btn--danger" id="sb-stop-btn" disabled>
+                                    <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>
+                                    <span data-i18n="sbStopBlock">Stop blocking</span>
+                                </button>
+                                <button type="button" class="sb-btn sb-btn--ghost" id="sb-ping-btn">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+                                    </svg>
+                                    <span data-i18n="sbPingAll">Test ping</span>
+                                </button>
+                                <button type="button" class="sb-btn sb-btn--ghost" id="sb-auto-best-btn">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                                    </svg>
+                                    <span data-i18n="sbAutoBest">Auto best server</span>
+                                </button>
+                                <button type="button" class="sb-btn sb-btn--ghost" id="sb-reset-btn">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="23 4 23 10 17 10"/>
+                                        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                                    </svg>
+                                    <span data-i18n="sbReset">Reset selection</span>
+                                </button>
+                                <button type="button" class="sb-btn sb-btn--ghost sb-btn--compact" id="sb-refresh-btn">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="23 4 23 10 17 10"/>
+                                        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                                    </svg>
+                                    <span data-i18n="sbRefreshCatalog">Refresh RU list</span>
+                                </button>
+                            </div>
+                        </nav>
+                    </aside>
+
+                    <div class="sb-main">
+                        <div class="sb-toolbar">
+                            <div class="sb-search-wrap">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                                </svg>
+                                <input type="search" class="sb-search-input" id="sb-search"
+                                    placeholder="Search by name, pool or IP…" data-i18n-placeholder="sbSearch">
+                            </div>
+                            <label class="sb-check">
+                                <input type="checkbox" class="sb-check-input" id="sb-show-blocked">
+                                <span class="sb-check-box" aria-hidden="true"></span>
+                                <span class="sb-check-label" data-i18n="sbShowBlocked">Blocked only</span>
+                            </label>
+                        </div>
+                        <div class="sb-pools sb-scroll" id="sb-pools"></div>
+                    </div>
+                </div>
+            </main>
+        </div>
 
         <!-- Footer -->
         <footer class="app-footer">
@@ -331,14 +456,39 @@
             <div class="footer-right">
                 <span class="footer-author" data-i18n="footerAuthor">by Nyrokume.dev</span>
                 <span class="footer-divider">//</span>
-                <span class="footer-copyright">v1.5.1</span>
+                <span class="footer-copyright">v1.5.4</span>
             </div>
         </footer>
     </div>
 
+    <!-- Server Blocker — first visit warning -->
+    <div class="welcome-modal hidden" id="sb-warning-modal" aria-hidden="true">
+        <div class="welcome-card welcome-card--sb-warning custom-scroll" role="dialog" aria-labelledby="sb-warning-title">
+            <div class="welcome-logo welcome-logo--warn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                    <line x1="12" y1="9" x2="12" y2="13"/>
+                    <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+            </div>
+            <h2 class="welcome-title" id="sb-warning-title" data-i18n="sbWarningTitle">Server blocking</h2>
+            <div class="welcome-license sb-warning-body">
+                <p data-i18n="sbWarningP1">Current version uses Windows Firewall (outbound rules on ports 29450–29460). Administrator rights are required.</p>
+                <p data-i18n="sbWarningP2"><strong>Do not use WinDivert-based blockers</strong> together with ExitLag, GearUP or similar boosters — two stack interceptors conflict and break tunnels.</p>
+                <p data-i18n="sbWarningP3">Planned alternative: server-side MITM via <code>backend-*.stalzone</code> and <code>/address_list</code> API — minimal OS changes, compatible with boosters. See <code>docs/server-blocker-architecture-ru.md</code>.</p>
+            </div>
+            <label class="welcome-check welcome-accept">
+                <input type="checkbox" class="welcome-check-input" id="sb-warning-accept">
+                <span class="welcome-check-box" aria-hidden="true"></span>
+                <span data-i18n="sbWarningAccept">I understand the risks</span>
+            </label>
+            <button type="button" class="action-btn welcome-ok" id="sb-warning-ok" data-i18n="sbWarningOk" disabled>Continue</button>
+        </div>
+    </div>
+
     <!-- Step 1: License agreement -->
     <div class="welcome-modal hidden" id="license-modal" aria-hidden="true">
-        <div class="welcome-card custom-scroll" role="dialog" aria-labelledby="license-title">
+        <div class="welcome-card welcome-card--license custom-scroll" role="dialog" aria-labelledby="license-title">
             <div class="welcome-logo">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M12 2L2 7l10 5 10-5-10-5z"/>
@@ -348,14 +498,14 @@
             </div>
             <h2 class="welcome-title" id="license-title" data-i18n="welcomeTitle">License Agreement</h2>
             <p class="welcome-authors" data-i18n="welcomeAuthors">Authors: Nyrokume, SilentBless</p>
-            <p class="welcome-body" data-i18n="welcomeBody">Program description</p>
             <div class="welcome-license">
                 <p data-i18n="welcomeLicenseP1">Free and non-commercial.</p>
                 <p data-i18n="welcomeLicenseP2">Disclaimer.</p>
                 <p data-i18n="welcomeLicenseP3">By continuing you accept.</p>
             </div>
             <label class="welcome-check welcome-accept">
-                <input type="checkbox" id="welcome-accept">
+                <input type="checkbox" class="welcome-check-input" id="welcome-accept">
+                <span class="welcome-check-box" aria-hidden="true"></span>
                 <span data-i18n="welcomeAccept">I accept the license agreement</span>
             </label>
             <button type="button" class="action-btn welcome-ok" id="license-ok" data-i18n="welcomeOk" disabled>Continue</button>

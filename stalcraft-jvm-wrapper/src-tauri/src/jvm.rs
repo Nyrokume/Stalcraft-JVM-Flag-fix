@@ -281,6 +281,8 @@ pub fn filter_args(orig: &[String], injected: &[String]) -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::{generate, Config};
+    use crate::system::SystemInfo;
 
     #[test]
     fn filter_strips_heap_flags() {
@@ -294,5 +296,26 @@ mod tests {
         assert!(out.contains(&"-Xmx6g".to_string()));
         assert!(!out.iter().any(|a| a == "-Xmx2g"));
         assert!(out.contains(&"Main".to_string()));
+    }
+
+    #[test]
+    fn flags_includes_heap_and_g1_for_default_config() {
+        let sys = SystemInfo {
+            total_ram: 32 << 30,
+            free_ram: 16 << 30,
+            cpu_cores: 8,
+            cpu_threads: 16,
+            l3_cache_mb: 32,
+            mem_speed_mts: 3200,
+            large_pages: false,
+            large_page_size: 0,
+            cpu_name: "test".into(),
+            gpu_name: "test".into(),
+        };
+        let cfg: Config = generate(&sys);
+        let f = flags(&cfg);
+        assert!(f.iter().any(|a| a.starts_with("-Xmx")));
+        assert!(f.iter().any(|a| a == "-XX:+UseG1GC"));
+        assert!(f.len() > 20);
     }
 }

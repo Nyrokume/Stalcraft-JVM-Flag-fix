@@ -2,7 +2,7 @@
 
 Tauri/Rust port of [EXBO-Community/stalcraft-jvm-optimization](https://github.com/EXBO-Community/stalcraft-jvm-optimization) for **STALZONE** (EXBO launcher).
 
-**Latest release:** [v1.5.1](https://github.com/Nyrokume/Stalcraft-JVM-Flag-fix/releases/latest) · `wrapper.zip`
+**Latest release:** [v1.5.4](https://github.com/Nyrokume/Stalcraft-JVM-Flag-fix/releases/latest) · `wrapper.zip`
 
 ## Screenshots
 
@@ -18,7 +18,7 @@ Tauri/Rust port of [EXBO-Community/stalcraft-jvm-optimization](https://github.co
   service.exe                 ← IFEO debugger (required)
   configs\default.json
   logs\wrapper.log
-  examples\
+  examples\                   ← JVM presets (copy to configs\ or import in UI)
 ```
 
 ## IFEO targets
@@ -44,13 +44,43 @@ Registry: native 64-bit + WOW6432Node.
 
 **Do not run `service.exe` manually.**
 
-## Features (v1.5.1)
+## Server Blocker (v1.5.4)
 
-- [EXBO v1.1.2](https://github.com/EXBO-Community/stalcraft-jvm-optimization/releases/tag/v1.1.2) parity: `stalzone*` IFEO targets first
-- Typed launcher paths (`paths.rs`), canonical `EXBO\jvm_wrapper` home
-- Two-step startup: license + author info (every launch)
+Second tab in the app: ping 77 game tunnels, auto-best per region, block unwanted servers.
+
+| Topic | Detail |
+|-------|--------|
+| **Current method** | Windows Firewall outbound rules on ports **29450–29460** (UAC required) |
+| **Not used** | WinDivert on the client — conflicts with ExitLag/GearUP |
+| **Planned** | Server-side MITM via `backend-*.stalzone` + `/address_list` API |
+| **First visit** | Warning modal explains firewall, booster risk, and roadmap |
+| **After ping** | Servers with ping >100 ms or unreachable are hidden and auto-blocked |
+
+Architecture plan: [docs/server-blocker-architecture-ru.md](docs/server-blocker-architecture-ru.md)
+
+## JVM presets (EXBO)
+
+Shipped in `examples/` inside `wrapper.zip`:
+
+| Preset | Source |
+|--------|--------|
+| `balanced_mid` | EXBO v1.1.1+ mid DDR tier |
+| `slow_ddr` | EXBO v1.1.1+ slow DDR |
+| `throughput_v110` | EXBO v1.1.0 mainstream |
+| `x3d_v110` | EXBO v1.1.0 X3D / big L3 |
+| `8khz` | Official EXBO high-end / 8 kHz mouse |
+| `removed_fast_ddr` | Removed fast DDR tier (experimental) |
+
+Import presets from the **CONFIGURATION** panel (chips) or copy JSON to `configs\`.
+
+## Features (v1.5.4)
+
+- [EXBO v1.1.2](https://github.com/EXBO-Community/stalcraft-jvm-optimization/releases/tag/v1.1.2) JVM generate parity
+- Server Blocker GA: 77 servers, ping, auto-best top-3/region, firewall blocking
+- JVM preset library from EXBO release history
+- Two-step startup: license + author info (once per install via localStorage)
 - Hardware detection: CPUID, WMI, registry (multi-view)
-- IFEO via `service.exe` (EXBO parity), UAC install from GUI
+- IFEO via `service.exe`, UAC install from GUI
 - Custom app icon, orange scrollbars
 - Authors: Nyrokume, SilentBless — GitHub / Discord / Telegram in app
 
@@ -58,6 +88,7 @@ Registry: native 64-bit + WOW6432Node.
 
 ```powershell
 npm install
+npm test          # JS + Rust + UI smoke
 npm run build:prod
 ```
 
@@ -73,6 +104,8 @@ npm run screenshots   # optional: refresh docs/screenshots/
 stalcraft-jvm-wrapper.exe --install
 stalcraft-jvm-wrapper.exe --uninstall
 stalcraft-jvm-wrapper.exe --status
+stalcraft-jvm-wrapper.exe --sb-apply <ips>   # firewall block (admin)
+stalcraft-jvm-wrapper.exe --sb-clear         # remove rules (admin)
 ```
 
 ## Authors & support

@@ -240,6 +240,41 @@ pub fn list() -> Result<Vec<String>, String> {
     Ok(names)
 }
 
+pub fn examples_dir() -> PathBuf {
+    crate::paths::examples_dir()
+}
+
+pub fn list_examples() -> Result<Vec<String>, String> {
+    let dir = examples_dir();
+    if !dir.exists() {
+        return Ok(vec![]);
+    }
+    let entries = std::fs::read_dir(&dir).map_err(|e| format!("scan examples: {}", e))?;
+    let mut names = Vec::new();
+    for entry in entries.flatten() {
+        let p = entry.path();
+        if p.extension().and_then(|e| e.to_str()) == Some("json") {
+            if let Some(stem) = p.file_stem().and_then(|s| s.to_str()) {
+                names.push(stem.to_string());
+            }
+        }
+    }
+    names.sort();
+    Ok(names)
+}
+
+pub fn import_example(name: &str) -> Result<(), String> {
+    if name.is_empty() || name.contains(['/', '\\']) || name.contains("..") {
+        return Err("invalid example name".to_string());
+    }
+    let src = examples_dir().join(format!("{}.json", name));
+    let data =
+        std::fs::read_to_string(&src).map_err(|e| format!("read {}: {}", src.display(), e))?;
+    let cfg: Config = serde_json::from_str(&data)
+        .map_err(|e| format!("parse {}: {}", src.display(), e))?;
+    save(&cfg, name)
+}
+
 pub fn ensure(sys: &SystemInfo) -> Result<(), String> {
     let dir = config_dir();
     std::fs::create_dir_all(&dir).map_err(|e| format!("create configs dir: {}", e))?;
@@ -393,4 +428,64 @@ pub fn active_name() -> Option<String> {
         return Some(legacy);
     }
     None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::system::SystemInfo;
+
+    fn mock_sys(total_gb: u64, threads: usize, mts: usize) -> SystemInfo {
+        SystemInfo {
+            total_ram: total_gb << 30,
+            free_ram: total_gb << 29,
+            cpu_cores: threads / 2,
+            cpu_threads: threads,
+            l3_cache_mb: 32,
+            mem_speed_mts: mts,
+            large_pages: false,
+            large_page_size: 0,
+            cpu_name: "test".into(),
+            gpu_name: "test".into(),
+        }
+    }
+
+    #[test]
+    fn generate_heap_within_bounds() {
+        let sys = mock_sys(32, 16, 3200);
+        let cfg = generate(&sys);
+        assert!(cfg.heap_size_gb >= 4);
+        assert!(cfg.heap_size_gb <= 16);
+    }
+
+    #[test]
+    fn generate_slow_tier_pause_higher() {
+        let slow = generate(&mock_sys(16, 8, 2133));
+        let mid = generate(&mock_sys(16, 8, 3200));
+        assert!(slow.max_gc_pause_millis >= mid.max_gc_pause_millis);
+    }
+
+    #[test]
+    fn shipped_examples_include_presets() {
+        let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../examples");
+        for name in [
+            "8khz",
+            "balanced_mid",
+            "slow_ddr",
+            "throughput_v110",
+            "x3d_v110",
+            "removed_fast_ddr",
+        ] {
+            assert!(
+                dir.join(format!("{name}.json")).is_file(),
+                "missing example preset: {name}"
+            );
+        }
+    }
+
+    #[test]
+    fn list_examples_ok() {
+        let names = list_examples().expect("examples");
+        assert!(!names.is_empty());
+    }
 }

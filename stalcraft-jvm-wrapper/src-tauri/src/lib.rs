@@ -6,7 +6,9 @@ pub mod ifeo;
 pub mod jvm;
 pub mod log;
 pub mod paths;
+pub mod ping;
 pub mod process;
+pub mod server_block;
 pub mod system;
 
 #[cfg(feature = "gui")]

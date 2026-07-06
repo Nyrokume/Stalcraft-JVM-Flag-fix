@@ -108,6 +108,24 @@ pub fn list_configs() -> Result<ConfigListResponse, String> {
     })
 }
 
+#[derive(Serialize)]
+pub struct ExampleListResponse {
+    pub names: Vec<String>,
+}
+
+#[command]
+pub fn list_examples() -> Result<ExampleListResponse, String> {
+    Ok(ExampleListResponse {
+        names: config::list_examples()?,
+    })
+}
+
+#[command]
+pub fn import_example_config(name: String) -> Result<String, String> {
+    config::import_example(&name)?;
+    Ok(format!("Imported preset: {name}.json"))
+}
+
 #[command]
 pub fn select_config(name: String) -> Result<String, String> {
     config::set_active(&name)?;
@@ -137,4 +155,65 @@ pub struct ConfigResponse {
 pub fn get_active_config() -> Result<ConfigResponse, String> {
     let (cfg, name) = config::load_active()?;
     Ok(ConfigResponse { name, config: cfg })
+}
+
+#[command]
+pub async fn ping_servers(
+    targets: Vec<crate::ping::PingTarget>,
+    timeout_ms: Option<u64>,
+) -> Result<Vec<crate::ping::PingResult>, String> {
+    let timeout_ms = timeout_ms.unwrap_or(crate::ping::DEFAULT_TIMEOUT_MS);
+    tauri::async_runtime::spawn_blocking(move || crate::ping::ping_targets(&targets, timeout_ms))
+        .await
+        .map_err(|e| format!("ping task join failed: {e}"))
+}
+
+fn write_sb_ips_temp(ips: &[String]) -> Result<std::path::PathBuf, String> {
+    let path = std::env::temp_dir().join(format!("stalzone-sb-{}.json", std::process::id()));
+    let json = serde_json::to_string(ips).map_err(|e| e.to_string())?;
+    std::fs::write(&path, json).map_err(|e| e.to_string())?;
+    Ok(path)
+}
+
+#[command]
+pub fn start_server_blocking(ips: Vec<String>) -> Result<String, String> {
+    if ifeo::is_admin() {
+        return crate::server_block::apply_blocks(&ips);
+    }
+    let path = write_sb_ips_temp(&ips)?;
+    let arg = format!("--sb-apply \"{}\"", path.display());
+    let code = elevate::run_as_admin(&arg)?;
+    let _ = std::fs::remove_file(&path);
+    if code != 0 {
+        return Err(format!("Blocking failed (exit {})", code));
+    }
+    Ok("Firewall rules applied.".to_string())
+}
+
+#[command]
+pub fn stop_server_blocking() -> Result<String, String> {
+    if ifeo::is_admin() {
+        let removed = crate::server_block::clear_rules()?;
+        return Ok(format!("Removed {} firewall rule(s)", removed));
+    }
+    let code = elevate::run_as_admin("--sb-clear")?;
+    if code != 0 {
+        return Err(format!("Unblock failed (exit {})", code));
+    }
+    Ok("Firewall rules removed.".to_string())
+}
+
+#[derive(Serialize)]
+pub struct ServerBlockStatus {
+    pub active: bool,
+    pub rule_count: u32,
+}
+
+#[command]
+pub fn server_blocking_active() -> Result<ServerBlockStatus, String> {
+    let status = crate::server_block::blocking_status()?;
+    Ok(ServerBlockStatus {
+        active: status.active,
+        rule_count: status.rule_count,
+    })
 }

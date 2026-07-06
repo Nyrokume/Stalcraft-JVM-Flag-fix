@@ -11,11 +11,12 @@ cargo build --release --bins
 if ($LASTEXITCODE -ne 0) { Pop-Location; exit $LASTEXITCODE }
 Pop-Location
 
-if (Test-Path $Stage) { Remove-Item $Stage -Recurse -Force }
-New-Item -ItemType Directory -Path $Stage | Out-Null
-Copy-Item (Join-Path $Tauri "target\release\stalcraft-jvm-wrapper.exe") $Stage
-Copy-Item (Join-Path $Tauri "target\release\service.exe") $Stage
-Copy-Item (Join-Path $Root "examples") (Join-Path $Stage "examples") -Recurse
+if (-not (Test-Path $Stage)) { New-Item -ItemType Directory -Path $Stage | Out-Null }
+Copy-Item (Join-Path $Tauri "target\release\stalcraft-jvm-wrapper.exe") $Stage -Force
+Copy-Item (Join-Path $Tauri "target\release\service.exe") $Stage -Force
+$examplesDest = Join-Path $Stage "examples"
+if (Test-Path $examplesDest) { Remove-Item $examplesDest -Recurse -Force -ErrorAction SilentlyContinue }
+Copy-Item (Join-Path $Root "examples") $examplesDest -Recurse -Force
 
 if (Test-Path $Zip) { Remove-Item $Zip -Force }
 Compress-Archive -Path (Join-Path $Stage "*") -DestinationPath $Zip -Force
