@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.5.1 (2026-07-06)
+
+- Parity with [EXBO stalcraft-jvm-optimization v1.1.2](https://github.com/EXBO-Community/stalcraft-jvm-optimization/releases/tag/v1.1.2)
+- IFEO: `stalzone.exe` / `stalzonew.exe` canonical, `stalcraft.exe` fallback
+- Config fallback logging when active profile file is missing
+- Work dir canonicalization for spawned game process
+
 ## v1.5.0 (2026-07-01)
 
 - Two-step startup: license acceptance → authors & contacts

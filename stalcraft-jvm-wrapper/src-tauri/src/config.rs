@@ -202,12 +202,7 @@ fn clamp(v: usize, lo: usize, hi: usize) -> usize {
 }
 
 pub fn config_dir() -> PathBuf {
-    if let Ok(exe) = std::env::current_exe() {
-        if let Some(parent) = exe.parent() {
-            return parent.join("configs");
-        }
-    }
-    PathBuf::from("configs")
+    crate::paths::configs_dir()
 }
 
 pub fn save(cfg: &Config, name: &str) -> Result<(), String> {

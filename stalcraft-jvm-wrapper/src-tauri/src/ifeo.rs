@@ -4,7 +4,7 @@ use std::ffi::OsStr;
 use std::os::windows::ffi::OsStrExt;
 use std::path::PathBuf;
 
-use crate::{config, log, system};
+use crate::{config, log, paths, system};
 
 #[link(name = "advapi32")]
 extern "system" {
@@ -66,44 +66,24 @@ const IFEO_PATH: &str =
     r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options";
 const SERVICE_NAME: &str = "service.exe";
 
-/// EXBO + EXBO runtime JVM launchers (win64/java/bin).
+/// IFEO game launchers + runtime JVM (win64/java/bin).
+/// stalzone* registered ahead of stalcraft* (EXBO v1.1.2 rebrand parity).
 pub const IFEO_TARGETS: &[&str] = &[
-    "stalcraft.exe",
-    "stalcraftw.exe",
     "stalzone.exe",
     "stalzonew.exe",
+    "stalcraft.exe",
+    "stalcraftw.exe",
     "java.exe",
     "javaw.exe",
 ];
 
 const LEGACY_TARGETS: &[&str] = &["stalart.exe", "stalartw.exe"];
 
-const GAME_PATH_MARKERS: &[&str] = &[
-    r"\runtime\stalcraft",
-    r"\stalcraft\",
-    r"\exbo\",
-    "/runtime/stalcraft",
-    "/stalcraft/",
-    "/exbo/",
-];
-
 pub fn should_inject_jvm(path: &str) -> bool {
-    let lower = path.to_lowercase();
-    let name = std::path::Path::new(path)
-        .file_name()
-        .and_then(|s| s.to_str())
-        .unwrap_or("")
-        .to_lowercase();
-    if matches!(
-        name.as_str(),
-        "stalcraft.exe" | "stalcraftw.exe" | "stalzone.exe" | "stalzonew.exe"
-    ) {
+    if paths::is_launcher_binary(path) {
         return true;
     }
-    if name == "java.exe" || name == "javaw.exe" {
-        return GAME_PATH_MARKERS.iter().any(|m| lower.contains(m));
-    }
-    false
+    paths::is_game_java(path)
 }
 
 #[derive(Debug, Clone)]
@@ -122,15 +102,20 @@ pub fn service_ready() -> bool {
 }
 
 fn resolve_service() -> Result<PathBuf, String> {
-    let self_path = std::env::current_exe().map_err(|e| format!("resolve self: {}", e))?;
-    let dir = self_path
-        .parent()
-        .ok_or_else(|| "wrapper executable has no parent directory".to_string())?;
-    let service = dir.join(SERVICE_NAME);
+    let service = paths::wrapper_home().join(SERVICE_NAME);
     if !service.is_file() {
+        if let Ok(self_path) = std::env::current_exe() {
+            if let Some(dir) = self_path.parent() {
+                let alt = dir.join(SERVICE_NAME);
+                if alt.is_file() {
+                    return Ok(alt);
+                }
+            }
+        }
         return Err(format!(
-            "{} must live next to stalcraft-jvm-wrapper.exe (copy both from target/release/)",
-            SERVICE_NAME
+            "{} not found in {} (copy both exes from release)",
+            SERVICE_NAME,
+            paths::wrapper_home().display()
         ));
     }
     Ok(service)
@@ -354,7 +339,7 @@ pub fn install(_override_path: Option<&str>) -> Result<String, String> {
     }
 
     let msg = format!(
-        "IFEO installed for stalcraft.exe, stalcraftw.exe, stalzone.exe, stalzonew.exe. Debugger = \"{}\"",
+        "IFEO installed for stalzone.exe, stalzonew.exe, stalcraft.exe, stalcraftw.exe. Debugger = \"{}\"",
         service.display()
     );
     log::append_wrapper_log_line("IFEO install_ok");

@@ -19,10 +19,10 @@ const MOCK_SYSTEM = {
 };
 
 const MOCK_STATUS = `service.exe: ok (dev mock)
-stalcraft.exe: ok
-stalcraftw.exe: ok
 stalzone.exe: ok
 stalzonew.exe: ok
+stalcraft.exe: ok
+stalcraftw.exe: ok
 java.exe: ok
 javaw.exe: ok`;
 

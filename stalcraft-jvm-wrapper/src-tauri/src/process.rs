@@ -10,6 +10,8 @@ use std::os::windows::ffi::OsStrExt;
 use std::path::Path;
 use std::ptr;
 
+use crate::paths;
+
 // ─── NT / Win32 API ───────────────────────────────────────────────────────────
 
 #[link(name = "ntdll")]
@@ -238,15 +240,37 @@ fn extract_game_dir(exe_path: &str, args: &[String]) -> String {
     String::new()
 }
 
+fn abs_work_dir(dir: &str) -> String {
+    if dir.is_empty() {
+        return String::new();
+    }
+    let p = Path::new(dir);
+    if let Ok(c) = p.canonicalize() {
+        return c.to_string_lossy().to_string();
+    }
+    if p.is_absolute() {
+        return dir.to_string();
+    }
+    std::env::current_dir()
+        .ok()
+        .map(|cwd| cwd.join(p).to_string_lossy().to_string())
+        .unwrap_or_else(|| dir.to_string())
+}
+
 fn resolve_work_dir(abs_path: &str, args: &[String]) -> String {
     let dir = extract_game_dir(abs_path, args);
     if !dir.is_empty() {
-        return dir;
+        return abs_work_dir(&dir);
     }
-    Path::new(abs_path)
-        .parent()
-        .map(|p| p.to_string_lossy().to_string())
-        .unwrap_or_default()
+    if let Some(game) = paths::game_dir_from_target(abs_path) {
+        return abs_work_dir(&game.to_string_lossy());
+    }
+    abs_work_dir(
+        &Path::new(abs_path)
+            .parent()
+            .map(|p| p.to_string_lossy().to_string())
+            .unwrap_or_default(),
+    )
 }
 
 // ─── Phantom window (аналог phantom.go) ──────────────────────────────────────

@@ -4,15 +4,10 @@ use std::io::Write;
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::config;
-
 const MAX_LOG_BYTES: u64 = 2 * 1024 * 1024;
 
 fn wrapper_log_path() -> PathBuf {
-    config::config_dir()
-        .parent()
-        .map(|p| p.join("logs").join("wrapper.log"))
-        .unwrap_or_else(|| PathBuf::from("logs").join("wrapper.log"))
+    crate::paths::logs_dir().join("wrapper.log")
 }
 
 fn unix_ts() -> u64 {

@@ -2,7 +2,7 @@
 
 Tauri/Rust port of [EXBO-Community/stalcraft-jvm-optimization](https://github.com/EXBO-Community/stalcraft-jvm-optimization) for **STALZONE** (EXBO launcher).
 
-**Latest release:** [v1.5.0](https://github.com/Nyrokume/Stalcraft-JVM-Flag-fix/releases/latest) · `wrapper.zip`
+**Latest release:** [v1.5.1](https://github.com/Nyrokume/Stalcraft-JVM-Flag-fix/releases/latest) · `wrapper.zip`
 
 ## Screenshots
 
@@ -25,7 +25,7 @@ Tauri/Rust port of [EXBO-Community/stalcraft-jvm-optimization](https://github.co
 
 | Image | Behavior |
 |-------|----------|
-| `stalcraft.exe`, `stalcraftw.exe`, `stalzone.exe`, `stalzonew.exe` | Always inject JVM flags |
+| `stalzone.exe`, `stalzonew.exe`, `stalcraft.exe`, `stalcraftw.exe` | Always inject JVM flags |
 | `java.exe`, `javaw.exe` | Inject only under `\runtime\stalcraft\` or `\exbo\` |
 
 Registry: native 64-bit + WOW6432Node.
@@ -44,9 +44,10 @@ Registry: native 64-bit + WOW6432Node.
 
 **Do not run `service.exe` manually.**
 
-## Features (v1.5.0)
+## Features (v1.5.1)
 
-- **STALZONE** branding, RU/EN UI (titlebar switcher)
+- [EXBO v1.1.2](https://github.com/EXBO-Community/stalcraft-jvm-optimization/releases/tag/v1.1.2) parity: `stalzone*` IFEO targets first
+- Typed launcher paths (`paths.rs`), canonical `EXBO\jvm_wrapper` home
 - Two-step startup: license + author info (every launch)
 - Hardware detection: CPUID, WMI, registry (multi-view)
 - IFEO via `service.exe` (EXBO parity), UAC install from GUI

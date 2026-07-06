@@ -25,7 +25,7 @@
 [![Downloads](https://img.shields.io/github/downloads/Nyrokume/Stalcraft-JVM-Flag-fix/total?label=Downloads&color=green)](https://github.com/Nyrokume/Stalcraft-JVM-Flag-fix/releases)
 [![Latest Release](https://img.shields.io/github/v/release/Nyrokume/Stalcraft-JVM-Flag-fix?label=Latest)](https://github.com/Nyrokume/Stalcraft-JVM-Flag-fix/releases/latest)
 
-**[Скачать v1.5.0](https://github.com/Nyrokume/Stalcraft-JVM-Flag-fix/releases/latest)** — `wrapper.zip`
+**[Скачать v1.5.1](https://github.com/Nyrokume/Stalcraft-JVM-Flag-fix/releases/latest)** — `wrapper.zip`
 
 ---
 
@@ -38,11 +38,11 @@
 | **`stalcraft-jvm-wrapper.exe`** | Графический интерфейс: установка, удаление, проверка IFEO, выбор профиля, просмотр железа и лога. Запускается вручную, когда нужно что-то настроить. |
 | **`service.exe`** | Тихий перехватчик IFEO: Windows запускает его при старте игры. **Не запускайте вручную.** |
 
-`service.exe` перехватывает запуск процессов игры и JVM:
+`service.exe` перехватывает запуск процессов игры **`stalzone.exe`** / **`stalzonew.exe`** (канонические имена после ребренда STALZONE), а также **`stalcraft.exe`** / **`stalcraftw.exe`** (fallback, пока процесс не переименован), и JVM игры:
 
 | Образ | Поведение |
 |-------|-----------|
-| `stalcraft.exe`, `stalcraftw.exe`, `stalzone.exe`, `stalzonew.exe` | Всегда подставляет оптимальные JVM-флаги |
+| `stalzone.exe`, `stalzonew.exe`, `stalcraft.exe`, `stalcraftw.exe` | Всегда подставляет оптимальные JVM-флаги |
 | `java.exe`, `javaw.exe` | Только если процесс из папок игры (`\runtime\stalcraft\`, `\exbo\`) |
 
 При перехвате утилита:

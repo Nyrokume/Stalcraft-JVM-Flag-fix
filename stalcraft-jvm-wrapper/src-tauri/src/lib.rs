@@ -5,6 +5,7 @@ pub mod elevate;
 pub mod ifeo;
 pub mod jvm;
 pub mod log;
+pub mod paths;
 pub mod process;
 pub mod system;
 
@@ -59,6 +60,7 @@ fn run_inject(args: &[String]) -> i32 {
         log::append_wrapper_log_line(&format!("config_ensure_warn err={}", e));
     }
 
+    let requested = config::active_name();
     let mut final_args = orig_args.to_vec();
     let jvm_mode;
 
@@ -71,6 +73,14 @@ fn run_inject(args: &[String]) -> i32 {
             jvm_mode = "CONFIG_ERROR";
         }
         Ok((cfg, loaded_name)) => {
+            if let Some(ref req) = requested {
+                if req != &loaded_name {
+                    log::append_wrapper_log_line(&format!(
+                        "config_fallback requested={} loaded={}",
+                        req, loaded_name
+                    ));
+                }
+            }
             if cfg.heap_size_gb == 0 {
                 log::append_wrapper_log_line(&format!(
                     "jvm_mode=NO_HEAP profile={} target={}",

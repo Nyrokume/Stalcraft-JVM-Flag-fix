@@ -2,7 +2,7 @@
 
 Порт [stalcraft-jvm-optimization](https://github.com/EXBO-Community/stalcraft-jvm-optimization) для **STALZONE** (лаунчер EXBO).
 
-**Актуальный релиз:** [v1.5.0](https://github.com/Nyrokume/Stalcraft-JVM-Flag-fix/releases/latest) · `wrapper.zip`
+**Актуальный релиз:** [v1.5.1](https://github.com/Nyrokume/Stalcraft-JVM-Flag-fix/releases/latest) · `wrapper.zip`
 
 ## Скриншоты
 
@@ -24,7 +24,7 @@
 
 | Образ | Поведение |
 |-------|-----------|
-| `stalcraft.exe`, `stalcraftw.exe`, `stalzone.exe`, `stalzonew.exe` | Всегда инжект JVM |
+| `stalzone.exe`, `stalzonew.exe`, `stalcraft.exe`, `stalcraftw.exe` | Всегда инжект JVM |
 | `java.exe`, `javaw.exe` | Только из папок игры (`\runtime\stalcraft\`, `\exbo\`) |
 
 ## Быстрый старт
@@ -41,9 +41,11 @@
 
 **Не запускайте `service.exe` вручную.**
 
-## v1.5.0
+## v1.5.1
 
-- Брендинг **STALZONE**, интерфейс RU/EN
+- Паритет с [EXBO v1.1.2](https://github.com/EXBO-Community/stalcraft-jvm-optimization/releases/tag/v1.1.2): `stalzone*` канон, `stalcraft*` fallback
+- Типизированные пути лаунчеров (`paths.rs`), `wrapper_home` → `%AppData%\Roaming\EXBO\jvm_wrapper`
+- Лог `config_fallback`, канонизация рабочей папки процесса
 - Два окна при старте: лицензия → авторы и контакты (каждый запуск)
 - Определение железа: CPUID, WMI, реестр
 - IFEO через `service.exe`, UAC из GUI

@@ -9,9 +9,10 @@ fn main() {
     }
 
     stalcraft_jvm_wrapper::log::append_wrapper_log_line(&format!(
-        "service_invoked argc={} target={} inject={}",
+        "service_invoked argc={} target={} launcher={} inject={}",
         args.len() - 1,
         stalcraft_jvm_wrapper::log::redact_path(&args[1]),
+        stalcraft_jvm_wrapper::paths::classify_target(&args[1]).kind.as_str(),
         stalcraft_jvm_wrapper::ifeo::should_inject_jvm(&args[1])
     ));
 
