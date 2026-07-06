@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.5.6 (2026-07-07)
+
+- **Server Blocker**: raise hide/auto-block ping threshold from 100 ms to 200 ms
+
 ## v1.5.5 (2026-07-07)
 
 - **Server Blocker**: removed allowlist mode — blocklist only

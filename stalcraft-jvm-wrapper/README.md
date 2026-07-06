@@ -54,7 +54,7 @@ Second tab in the app: ping 77 game tunnels, auto-best per region, block unwante
 | **Not used** | WinDivert on the client — conflicts with ExitLag/GearUP |
 | **Planned** | Server-side MITM via `backend-*.stalzone` + `/address_list` API |
 | **First visit** | Warning modal explains firewall, booster risk, and roadmap |
-| **After ping** | Servers with ping >100 ms or unreachable are hidden and auto-blocked |
+| **After ping** | Servers with ping >200 ms or unreachable are hidden and auto-blocked |
 
 Architecture plan: [docs/server-blocker-architecture-ru.md](docs/server-blocker-architecture-ru.md)
 

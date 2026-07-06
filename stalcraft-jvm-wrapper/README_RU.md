@@ -52,7 +52,7 @@
 | **Не используется** | WinDivert на клиенте — конфликт с ExitLag/GearUP |
 | **В планах** | Серверный MITM через `backend-*.stalzone` и API `/address_list` |
 | **Первый вход** | Модальное предупреждение о firewall, бустерах и roadmap |
-| **После пинга** | Серверы с пингом >100 мс и недоступные скрываются и блокируются |
+| **После пинга** | Серверы с пингом >200 мс и недоступные скрываются и блокируются |
 
 Архитектура: [docs/server-blocker-architecture-ru.md](docs/server-blocker-architecture-ru.md)
 

@@ -16,6 +16,7 @@ import {
     pickBestPerRegionTopN,
     pingLevelClass,
     poolsWithValidPing,
+    PING_ACCEPTABLE_MAX_MS,
     PING_CHUNK_SIZE,
     resolveBlockedHosts,
     shouldShowServerInMenu,
@@ -359,7 +360,7 @@ export async function initServerBlocker({ t, invoke = null }) {
         const scope = serversInRegion();
         const withPing = scope.filter((s) => {
             const ms = settings.pings[s.id];
-            return typeof ms === 'number' && ms <= 100;
+            return typeof ms === 'number' && ms <= PING_ACCEPTABLE_MAX_MS;
         });
         if (withPing.length >= Math.min(8, scope.length)) return;
         await runPing(scope);

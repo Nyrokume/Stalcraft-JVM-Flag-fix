@@ -5,7 +5,7 @@ export function formatPingMs(ms) {
     return `${ms}`;
 }
 
-export const PING_ACCEPTABLE_MAX_MS = 100;
+export const PING_ACCEPTABLE_MAX_MS = 200;
 
 export function isAcceptablePing(ms) {
     return typeof ms === 'number' && ms >= 0 && ms <= PING_ACCEPTABLE_MAX_MS;
@@ -164,12 +164,12 @@ export function countHiddenServers(servers, pingMap, { pinging = false } = {}) {
     return servers.filter((s) => !shouldShowServerInMenu(pingMap, s.id, { pinging })).length;
 }
 
-/** CSS modifier for ping latency: good ≤60ms, mid ≤100ms, else bad. */
+/** CSS modifier for ping latency: good ≤60ms, mid ≤200ms, else bad. */
 export function pingLevelClass(ms) {
     if (ms == null || ms < 0) return '';
     if (isVeryBadPing(ms)) return ' sb-card-ping--very-bad';
     if (ms <= 60) return ' sb-card-ping--good';
-    if (ms <= 100) return ' sb-card-ping--mid';
+    if (ms <= PING_ACCEPTABLE_MAX_MS) return ' sb-card-ping--mid';
     return ' sb-card-ping--bad';
 }
 

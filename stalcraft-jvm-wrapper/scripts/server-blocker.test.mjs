@@ -251,7 +251,9 @@ test('pingLevelClass thresholds', () => {
 
     assert.equal(pingLevelClass(80), ' sb-card-ping--mid');
 
-    assert.equal(pingLevelClass(150), ' sb-card-ping--bad');
+    assert.equal(pingLevelClass(150), ' sb-card-ping--mid');
+
+    assert.equal(pingLevelClass(250), ' sb-card-ping--bad');
 
     assert.equal(pingLevelClass(301), ' sb-card-ping--very-bad');
 
@@ -346,12 +348,12 @@ test('pickBestPerRegionTopN keeps top 3 pool winners per region', () => {
     );
 });
 
-test('pickBestPerRegionTopN skips ping above 100ms', () => {
+test('pickBestPerRegionTopN skips ping above 200ms', () => {
     const scope = [
         { id: 'A::1', pool: 'A', filterRegion: 'EU' },
         { id: 'B::1', pool: 'B', filterRegion: 'EU' },
     ];
-    const pings = { 'A::1': 150, 'B::1': 80 };
+    const pings = { 'A::1': 250, 'B::1': 80 };
     const { allowed } = pickBestPerRegionTopN(pings, scope, 3);
     assert.deepEqual(allowed, ['B::1']);
 });
@@ -417,12 +419,13 @@ test('poolsWithValidPing counts pools with at least one numeric ping', () => {
 });
 
 test('shouldShowServerInMenu hides bad and missing after ping', () => {
-    const pings = { 'a': 45, 'b': 150, 'c': null, 'd': undefined };
+    const pings = { 'a': 45, 'b': 250, 'c': null, 'd': undefined };
     assert.equal(shouldShowServerInMenu(pings, 'a'), true);
     assert.equal(shouldShowServerInMenu(pings, 'b'), false);
     assert.equal(shouldShowServerInMenu(pings, 'c'), false);
     assert.equal(shouldShowServerInMenu(pings, 'd'), true);
     assert.equal(shouldShowServerInMenu(pings, 'b', { pinging: true }), true);
+    assert.equal(shouldShowServerInMenu({ e: 180 }, 'e'), true);
 });
 
 test('mergeAutoBlockUnacceptable marks bad servers blocked in blocklist mode', () => {
@@ -430,14 +433,14 @@ test('mergeAutoBlockUnacceptable marks bad servers blocked in blocklist mode', (
         { id: 'a', pool: 'A' },
         { id: 'b', pool: 'A' },
     ];
-    const pings = { a: 40, b: 200 };
+    const pings = { a: 40, b: 250 };
     const blocked = mergeAutoBlockUnacceptable('blocklist', scope, pings, []);
     assert.deepEqual(blocked.sort(), ['b']);
 });
 
 test('countHiddenServers tallies bad and missing', () => {
     const scope = [{ id: 'a' }, { id: 'b' }, { id: 'c' }];
-    const pings = { a: 50, b: null, c: 120 };
-    assert.equal(countHiddenServers(scope, pings), 2);
+    const pings = { a: 50, b: null, c: 180 };
+    assert.equal(countHiddenServers(scope, pings), 1);
 });
 
