@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.5.7 (2026-07-07)
+
+- **JVM**: java\\bin\\stalzone.exe now runs in passthrough mode to avoid startup crash after wrapper replacement
+- **JVM**: flag injection kept for game java.exe / javaw.exe targets only
+
 ## v1.5.6 (2026-07-07)
 
 - **Server Blocker**: raise hide/auto-block ping threshold from 100 ms to 200 ms

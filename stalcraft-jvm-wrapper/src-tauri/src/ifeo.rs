@@ -80,10 +80,13 @@ pub const IFEO_TARGETS: &[&str] = &[
 const LEGACY_TARGETS: &[&str] = &["stalart.exe", "stalartw.exe"];
 
 pub fn should_inject_jvm(path: &str) -> bool {
-    if paths::is_launcher_binary(path) {
+    if paths::is_game_java(path) {
         return true;
     }
-    paths::is_game_java(path)
+    if paths::is_launcher_binary(path) {
+        return !paths::is_runtime_java_bin(path);
+    }
+    false
 }
 
 #[derive(Debug, Clone)]
@@ -441,6 +444,18 @@ mod tests {
     #[test]
     fn game_java_injects() {
         let p = r"C:\Users\me\AppData\Roaming\EXBO\runtime\stalcraft\win64\java\bin\javaw.exe";
+        assert!(should_inject_jvm(p));
+    }
+
+    #[test]
+    fn runtime_stalzone_passthrough() {
+        let p = r"C:\Users\me\AppData\Roaming\EXBO\runtime\stalcraft\win64\java\bin\stalzone.exe";
+        assert!(!should_inject_jvm(p));
+    }
+
+    #[test]
+    fn root_stalzone_injects() {
+        let p = r"C:\Users\me\AppData\Roaming\EXBO\stalzone.exe";
         assert!(should_inject_jvm(p));
     }
 

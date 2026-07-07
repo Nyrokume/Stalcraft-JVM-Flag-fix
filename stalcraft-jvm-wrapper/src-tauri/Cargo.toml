@@ -1,6 +1,6 @@
 [package]
 name = "stalcraft-jvm-wrapper"
-version = "1.5.6"
+version = "1.5.7"
 description = "STALZONE JVM Wrapper — IFEO JVM tuning for Windows"
 authors = []
 license = "MIT"

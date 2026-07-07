@@ -163,6 +163,11 @@ pub fn is_launcher_binary(path: &str) -> bool {
     )
 }
 
+pub fn is_runtime_java_bin(path: &str) -> bool {
+    let lower = norm_lower(path);
+    lower.contains(r"\runtime\stalcraft\") && lower.contains(r"\java\bin\")
+}
+
 pub fn is_game_java(path: &str) -> bool {
     let name = Path::new(path)
         .file_name()
@@ -237,5 +242,15 @@ mod tests {
         let p = r"C:\Users\me\AppData\Roaming\EXBO\runtime\stalcraft\win64\java\bin\javaw.exe";
         let dir = game_dir_from_target(p).unwrap();
         assert!(dir.to_string_lossy().ends_with("stalcraft"));
+    }
+
+    #[test]
+    fn runtime_java_bin_detected() {
+        assert!(is_runtime_java_bin(
+            r"C:\Users\me\AppData\Roaming\EXBO\runtime\stalcraft\win64\java\bin\stalzone.exe"
+        ));
+        assert!(!is_runtime_java_bin(
+            r"C:\Users\me\AppData\Roaming\EXBO\stalzone.exe"
+        ));
     }
 }
