@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.5.8 (2026-07-07)
+
+- **JVM hotfix**: inject flags only for game java.exe / javaw.exe; launcher exes run passthrough to prevent critical startup crash
+
 ## v1.5.7 (2026-07-07)
 
 - **JVM**: java\\bin\\stalzone.exe now runs in passthrough mode to avoid startup crash after wrapper replacement
