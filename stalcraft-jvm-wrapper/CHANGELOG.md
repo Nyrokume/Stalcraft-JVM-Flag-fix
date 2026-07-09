@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.6.4 (2026-07-09)
+
+- **Launch fix**: ship known-good `vendor/service.exe` (537088) — current Rust `service` build regressed `exit_code=1` on EXBO `stalzone.exe`
+- **Profile**: active preset was `8khz` (aggressive); working `jvm_wrapper.rar` used `default` — use **default** / **balanced_mid** first, then tune
+
 ## v1.6.3 (2026-07-09)
 
 - **JVM**: revert service flow to proven `run_inject` / `run_passthrough` (v1.5.4 parity)
