@@ -4,10 +4,33 @@
 
 use stalcraft_jvm_wrapper::commands::*;
 
+fn attach_parent_console() {
+    #[link(name = "kernel32")]
+    extern "system" {
+        fn AttachConsole(process_id: u32) -> i32;
+        fn AllocConsole() -> i32;
+    }
+    const ATTACH_PARENT_PROCESS: u32 = 0xFFFF_FFFF;
+    unsafe {
+        if AttachConsole(ATTACH_PARENT_PROCESS) == 0 {
+            AllocConsole();
+        }
+    }
+}
+
+fn cli_print(msg: &str) {
+    use std::io::Write;
+    let _ = writeln!(std::io::stdout(), "{msg}");
+    let _ = std::io::stdout().flush();
+}
+
 fn main() {
     let args: Vec<String> = std::env::args().collect();
 
     if let Some(flag) = args.get(1) {
+        if flag.starts_with("--") {
+            attach_parent_console();
+        }
         match flag.as_str() {
             "--install" => {
                 match stalcraft_jvm_wrapper::ifeo::install(None) {
@@ -89,29 +112,37 @@ fn main() {
                 let path = match args.get(2) {
                     Some(p) => p,
                     None => {
-                        eprintln!("[probe-path] missing path");
+                        cli_print("[probe-path] missing path");
                         std::process::exit(1);
                     }
                 };
                 let layout = stalcraft_jvm_wrapper::paths::classify_target(path);
-                eprintln!("[probe-path] path={}", path);
-                eprintln!("[probe-path] launcher={}", layout.kind.as_str());
-                eprintln!(
-                    "[probe-path] scope={}",
-                    stalcraft_jvm_wrapper::paths::scope_label(path)
-                );
-                eprintln!(
-                    "[probe-path] target_kind={}",
-                    stalcraft_jvm_wrapper::paths::target_kind(path)
-                );
-                eprintln!(
-                    "[probe-path] should_inject={}",
-                    stalcraft_jvm_wrapper::paths::should_inject_jvm(path)
-                );
-                eprintln!(
-                    "[probe-path] wrapper_home={}",
-                    stalcraft_jvm_wrapper::paths::wrapper_home().display()
-                );
+                let lines = [
+                    format!("[probe-path] path={path}"),
+                    format!("[probe-path] launcher={}", layout.kind.as_str()),
+                    format!(
+                        "[probe-path] scope={}",
+                        stalcraft_jvm_wrapper::paths::scope_label(path)
+                    ),
+                    format!(
+                        "[probe-path] target_kind={}",
+                        stalcraft_jvm_wrapper::paths::target_kind(path)
+                    ),
+                    format!(
+                        "[probe-path] should_inject={}",
+                        stalcraft_jvm_wrapper::paths::should_inject_jvm(path)
+                    ),
+                    format!(
+                        "[probe-path] wrapper_home={}",
+                        stalcraft_jvm_wrapper::paths::wrapper_home().display()
+                    ),
+                ];
+                for line in &lines {
+                    cli_print(line);
+                }
+                let log_dir = stalcraft_jvm_wrapper::paths::logs_dir();
+                let _ = std::fs::create_dir_all(&log_dir);
+                let _ = std::fs::write(log_dir.join("probe-last.txt"), lines.join("\n"));
                 std::process::exit(0);
             }
             _ => {}
