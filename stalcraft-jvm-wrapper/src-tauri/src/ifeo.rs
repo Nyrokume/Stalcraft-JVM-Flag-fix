@@ -80,8 +80,7 @@ pub const IFEO_TARGETS: &[&str] = &[
 const LEGACY_TARGETS: &[&str] = &["stalart.exe", "stalartw.exe"];
 
 pub fn should_inject_jvm(path: &str) -> bool {
-    // ponytail: inject only into game java/javaw; launcher shims stay passthrough.
-    paths::is_game_java(path)
+    paths::should_inject_jvm(path)
 }
 
 #[derive(Debug, Clone)]
@@ -443,15 +442,21 @@ mod tests {
     }
 
     #[test]
-    fn runtime_stalzone_passthrough() {
+    fn runtime_stalzone_injects() {
         let p = r"C:\Users\me\AppData\Roaming\EXBO\runtime\stalcraft\win64\java\bin\stalzone.exe";
-        assert!(!should_inject_jvm(p));
+        assert!(should_inject_jvm(p));
     }
 
     #[test]
-    fn root_stalzone_passthrough() {
+    fn root_stalzone_injects() {
         let p = r"C:\Users\me\AppData\Roaming\EXBO\stalzone.exe";
-        assert!(!should_inject_jvm(p));
+        assert!(should_inject_jvm(p));
+    }
+
+    #[test]
+    fn steam_stalcraftw_injects() {
+        let p = r"D:\Steam\steamapps\common\stalcraft\stalcraftw.exe";
+        assert!(should_inject_jvm(p));
     }
 
     #[test]

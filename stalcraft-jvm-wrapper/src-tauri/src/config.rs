@@ -255,12 +255,43 @@ pub fn list_examples() -> Result<Vec<String>, String> {
         let p = entry.path();
         if p.extension().and_then(|e| e.to_str()) == Some("json") {
             if let Some(stem) = p.file_stem().and_then(|s| s.to_str()) {
+                if stem == "presets.manifest" {
+                    continue;
+                }
                 names.push(stem.to_string());
             }
         }
     }
-    names.sort();
+    if let Some(order) = example_manifest_order() {
+        names.sort_by(|a, b| {
+            let ia = order.iter().position(|x| x == a).unwrap_or(usize::MAX);
+            let ib = order.iter().position(|x| x == b).unwrap_or(usize::MAX);
+            ia.cmp(&ib).then_with(|| a.cmp(b))
+        });
+    } else {
+        names.sort();
+    }
     Ok(names)
+}
+
+fn example_manifest_order() -> Option<Vec<String>> {
+    #[derive(Deserialize)]
+    struct Manifest {
+        presets: Vec<ManifestPreset>,
+    }
+    #[derive(Deserialize)]
+    struct ManifestPreset {
+        id: String,
+        #[serde(default)]
+        order: usize,
+    }
+
+    let path = examples_dir().join("presets.manifest.json");
+    let data = std::fs::read_to_string(path).ok()?;
+    let manifest: Manifest = serde_json::from_str(&data).ok()?;
+    let mut presets: Vec<_> = manifest.presets.into_iter().collect();
+    presets.sort_by_key(|p| p.order);
+    Some(presets.into_iter().map(|p| p.id).collect())
 }
 
 pub fn import_example(name: &str) -> Result<(), String> {
@@ -469,6 +500,9 @@ mod tests {
     fn shipped_examples_include_presets() {
         let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../examples");
         for name in [
+            "weak",
+            "medium",
+            "max",
             "8khz",
             "balanced_mid",
             "slow_ddr",

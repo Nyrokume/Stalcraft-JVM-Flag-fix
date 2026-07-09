@@ -18,7 +18,7 @@ pub mod commands;
 pub fn run_service_mode(args: &[String]) -> i32 {
     let target = &args[1];
     process::start_phantom_window();
-    if !ifeo::should_inject_jvm(target) {
+    if !paths::should_inject_jvm(target) {
         return run_passthrough(args);
     }
     run_inject(args)

@@ -1,8 +1,8 @@
 # STALZONE JVM Wrapper
 
-Tauri/Rust port of [EXBO-Community/stalcraft-jvm-optimization](https://github.com/EXBO-Community/stalcraft-jvm-optimization) for **STALZONE** (EXBO launcher).
+Tauri/Rust port of [EXBO-Community/stalcraft-jvm-optimization](https://github.com/EXBO-Community/stalcraft-jvm-optimization) for **STALZONE** (EXBO, Steam, EGS, VK Play).
 
-**Latest release:** [v1.5.5](https://github.com/Nyrokume/Stalcraft-JVM-Flag-fix/releases/latest) · `wrapper.zip`
+**Latest release:** [v1.6.0](https://github.com/Nyrokume/Stalcraft-JVM-Flag-fix/releases/latest) · `wrapper.zip`
 
 ## Screenshots
 
@@ -12,37 +12,54 @@ Tauri/Rust port of [EXBO-Community/stalcraft-jvm-optimization](https://github.co
 
 ## Layout
 
+| Platform | `jvm_wrapper` path |
+|----------|-------------------|
+| EXBO | `%AppData%\Roaming\EXBO\jvm_wrapper\` |
+| Steam | `…\steamapps\common\STALCRAFT\jvm_wrapper\` |
+| EGS | `…\Epic Games\STALCRAFT\jvm_wrapper\` |
+| VK Play | `…\VK Play\STALCRAFT\jvm_wrapper\` |
+
 ```
-%AppData%\Roaming\EXBO\jvm_wrapper\
+jvm_wrapper\
   stalcraft-jvm-wrapper.exe   ← GUI / installer (filename unchanged)
   service.exe                 ← IFEO debugger (required)
   configs\default.json
   logs\wrapper.log
-  examples\                   ← JVM presets (copy to configs\ or import in UI)
+  examples\                   ← JVM presets (manifest + JSON bank)
 ```
 
 ## IFEO targets
 
 | Image | Behavior |
 |-------|----------|
-| `stalzone.exe`, `stalzonew.exe`, `stalcraft.exe`, `stalcraftw.exe` | Always inject JVM flags |
-| `java.exe`, `javaw.exe` | Inject only under `\runtime\stalcraft\` or `\exbo\` |
+| `stalzone.exe`, `stalzonew.exe`, `stalcraft.exe`, `stalcraftw.exe` | Inject JVM flags when path is **game-scoped** (EXBO / Steam / EGS / VK) |
+| `java.exe`, `javaw.exe` | Inject only under game install roots (not system Java) |
+| Other images (e.g. `cmd.exe`, system `java.exe`) | Passthrough |
 
 Registry: native 64-bit + WOW6432Node.
 
 ## Quick start
 
-1. Add `%AppData%\Roaming\EXBO` to antivirus exclusions.
+1. Add your launcher folder to antivirus exclusions (EXBO: `%AppData%\Roaming\EXBO`).
 2. Download **`wrapper.zip`** from [Releases](https://github.com/Nyrokume/Stalcraft-JVM-Flag-fix/releases) (recommended) or build locally: `npm run build:prod`.
-3. Extract to `%AppData%\Roaming\EXBO\jvm_wrapper\` (both `.exe` files side by side).
+3. Extract to your platform `jvm_wrapper\` folder (both `.exe` files side by side). The in-app launch guide has per-platform paths.
 4. Launch GUI:
    - **Step 1:** accept license agreement
    - **Step 2:** authors & contacts screen → **Got it**
 5. Click **INSTALL** (UAC) → **VERIFY** (all targets `ok`).
-6. Fully restart EXBO launcher → play STALZONE.
-7. Check `logs\wrapper.log` → `service_invoked` → `jvm_mode=INJECTED`.
+6. Click a JVM preset chip (imports and applies in one click).
+7. Fully restart launcher → play STALZONE.
+8. Check `logs\wrapper.log` → `inject=true` → `jvm_mode=INJECTED` → `launcher=exbo|steam|…`.
 
 **Do not run `service.exe` manually.**
+
+### CLI diagnostics
+
+```text
+stalcraft-jvm-wrapper.exe --probe-path "D:\Steam\steamapps\common\stalcraft\stalcraftw.exe"
+```
+
+Prints launcher classification, scope, inject decision, and `wrapper_home` without starting the game.
 
 ## Server Blocker (v1.5.4)
 

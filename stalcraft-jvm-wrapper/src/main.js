@@ -18,12 +18,15 @@ let loadingScreen, loadingProgress, loadingStatus;
 let configSelect, configActiveLabel, regenerateConfigBtn, selectConfigBtn, configPresetGrid;
 
 const PRESET_ORDER = [
-    'balanced_mid',
-    'slow_ddr',
+    'weak',
+    'medium',
+    'max',
     'throughput_v110',
     'x3d_v110',
-    '8khz',
+    'balanced_mid',
+    'slow_ddr',
     'removed_fast_ddr',
+    '8khz',
 ];
 let ifeoStatusText;
 
@@ -406,6 +409,7 @@ async function importPreset(name) {
     try {
         const result = await invoke('import_example_config', { name });
         addLog(result, 'success');
+        await invoke('select_config', { name });
         await refreshConfigList();
         await refreshPresetGrid();
     } catch (e) {

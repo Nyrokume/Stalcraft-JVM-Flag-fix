@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.6.0 (2026-07-09)
+
+- **JVM**: restore EXBO parity — game-scoped injection for launchers (`stalzone` / `stalcraftw` / …) plus game `java.exe` / `javaw.exe`; system Java stays passthrough
+- **Steam / multi-launcher**: classify Steam, EGS, VK paths; launch guide with per-platform `jvm_wrapper` paths
+- **Logging**: `service_invoked` includes `scope`, `target_kind`; CLI `--probe-path` for offline diagnostics
+- **Presets**: EXBO v1.0.8 `weak` / `medium` / `max` + `presets.manifest.json`; one-click import+apply in UI
+
 ## v1.5.8 (2026-07-07)
 
 - **JVM hotfix**: inject flags only for game java.exe / javaw.exe; launcher exes run passthrough to prevent critical startup crash

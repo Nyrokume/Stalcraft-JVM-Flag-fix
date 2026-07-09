@@ -1331,6 +1331,43 @@ body {
     margin-bottom: 8px;
 }
 
+.launch-guide-platforms {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+.launch-guide-platform {
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    background: var(--bg-panel);
+    border: 1px solid var(--border-primary);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.launch-guide-platform:hover {
+    color: var(--text-primary);
+    border-color: var(--accent-primary);
+}
+
+.launch-guide-platform.active {
+    color: var(--accent-primary);
+    border-color: var(--accent-primary);
+    background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
+}
+
+.config-presets-hint {
+    margin: 0 0 8px;
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.4;
+}
+
 .guide-steps {
     margin: 0;
     padding: 0;

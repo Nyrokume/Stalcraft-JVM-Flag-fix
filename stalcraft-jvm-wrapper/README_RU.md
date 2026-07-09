@@ -1,8 +1,8 @@
 # STALZONE JVM Wrapper
 
-Порт [stalcraft-jvm-optimization](https://github.com/EXBO-Community/stalcraft-jvm-optimization) для **STALZONE** (лаунчер EXBO).
+Порт [stalcraft-jvm-optimization](https://github.com/EXBO-Community/stalcraft-jvm-optimization) для **STALZONE** (EXBO, Steam, EGS, VK Play).
 
-**Актуальный релиз:** [v1.5.5](https://github.com/Nyrokume/Stalcraft-JVM-Flag-fix/releases/latest) · `wrapper.zip`
+**Актуальный релиз:** [v1.6.0](https://github.com/Nyrokume/Stalcraft-JVM-Flag-fix/releases/latest) · `wrapper.zip`
 
 ## Скриншоты
 
@@ -12,35 +12,52 @@
 
 ## Файлы
 
+| Платформа | Путь `jvm_wrapper` |
+|-----------|-------------------|
+| EXBO | `%AppData%\Roaming\EXBO\jvm_wrapper\` |
+| Steam | `…\steamapps\common\STALCRAFT\jvm_wrapper\` |
+| EGS | `…\Epic Games\STALCRAFT\jvm_wrapper\` |
+| VK Play | `…\VK Play\STALCRAFT\jvm_wrapper\` |
+
 ```
-%AppData%\Roaming\EXBO\jvm_wrapper\
+jvm_wrapper\
   stalcraft-jvm-wrapper.exe   ← GUI (имя файла без изменений)
   service.exe                 ← перехватчик IFEO (обязателен)
   configs\default.json
   logs\wrapper.log
-  examples\                   ← пресеты JVM
+  examples\                   ← банк пресетов (manifest + JSON)
 ```
 
 ## IFEO
 
 | Образ | Поведение |
 |-------|-----------|
-| `stalzone.exe`, `stalzonew.exe`, `stalcraft.exe`, `stalcraftw.exe` | Всегда инжект JVM |
-| `java.exe`, `javaw.exe` | Только из папок игры (`\runtime\stalcraft\`, `\exbo\`) |
+| `stalzone.exe`, `stalzonew.exe`, `stalcraft.exe`, `stalcraftw.exe` | Инжект JVM только в **game-scoped** путях (EXBO / Steam / EGS / VK) |
+| `java.exe`, `javaw.exe` | Только из корней установки игры (не системный Java) |
+| Прочие (например `cmd.exe`, системный `java.exe`) | Passthrough |
 
 ## Быстрый старт
 
-1. Исключения антивируса для папки `EXBO`.
+1. Исключения антивируса для папки лаунчера (EXBO: `%AppData%\Roaming\EXBO`).
 2. Скачайте **`wrapper.zip`** из [Releases](https://github.com/Nyrokume/Stalcraft-JVM-Flag-fix/releases) или соберите: `npm run build:prod`.
-3. Распакуйте в `%AppData%\Roaming\EXBO\jvm_wrapper\`.
+3. Распакуйте в `jvm_wrapper\` вашей платформы (оба `.exe` рядом). В приложении — гайд с путями по платформам.
 4. Запустите GUI:
    - **Шаг 1:** примите лицензию
    - **Шаг 2:** экран авторов и контактов → **Понятно**
 5. **УСТАНОВИТЬ** (UAC) → **ПРОВЕРКА**.
-6. Полностью закройте лаунчер → запустите STALZONE.
-7. В логе: `service_invoked` → `jvm_mode=INJECTED`.
+6. Нажмите чип пресета JVM (импорт и применение в один клик).
+7. Полностью закройте лаунчер → запустите STALZONE.
+8. В логе: `inject=true` → `jvm_mode=INJECTED` → `launcher=exbo|steam|…`.
 
 **Не запускайте `service.exe` вручную.**
+
+### CLI-диагностика
+
+```text
+stalcraft-jvm-wrapper.exe --probe-path "D:\Steam\steamapps\common\stalcraft\stalcraftw.exe"
+```
+
+Показывает классификацию пути, scope, решение об инжекте и `wrapper_home` без запуска игры.
 
 ## Блокировка серверов (v1.5.4)
 

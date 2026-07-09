@@ -1,0 +1,13 @@
+{
+  "presets": [
+    { "id": "weak", "exbo_version": "v1.0.8", "tier": "weak", "label_key": "preset_weak", "hint_key": "presetHint_weak", "order": 1 },
+    { "id": "medium", "exbo_version": "v1.0.8", "tier": "medium", "label_key": "preset_medium", "hint_key": "presetHint_medium", "order": 2 },
+    { "id": "max", "exbo_version": "v1.0.8", "tier": "max", "label_key": "preset_max", "hint_key": "presetHint_max", "order": 3 },
+    { "id": "throughput_v110", "exbo_version": "v1.1.0", "tier": "throughput", "label_key": "preset_throughput_v110", "hint_key": "presetHint_throughput_v110", "order": 4 },
+    { "id": "x3d_v110", "exbo_version": "v1.1.0", "tier": "x3d", "label_key": "preset_x3d_v110", "hint_key": "presetHint_x3d_v110", "order": 5 },
+    { "id": "balanced_mid", "exbo_version": "v1.1.1", "tier": "balanced_mid", "label_key": "preset_balanced_mid", "hint_key": "presetHint_balanced_mid", "order": 6 },
+    { "id": "slow_ddr", "exbo_version": "v1.1.1", "tier": "slow_ddr", "label_key": "preset_slow_ddr", "hint_key": "presetHint_slow_ddr", "order": 7 },
+    { "id": "removed_fast_ddr", "exbo_version": "v1.1.1", "tier": "removed", "label_key": "preset_removed_fast_ddr", "hint_key": "presetHint_removed_fast_ddr", "order": 8 },
+    { "id": "8khz", "exbo_version": "examples", "tier": "8khz", "label_key": "preset_8khz", "hint_key": "presetHint_8khz", "order": 9 }
+  ]
+}

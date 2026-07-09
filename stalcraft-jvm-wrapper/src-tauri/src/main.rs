@@ -85,6 +85,35 @@ fn main() {
                     }
                 }
             }
+            "--probe-path" => {
+                let path = match args.get(2) {
+                    Some(p) => p,
+                    None => {
+                        eprintln!("[probe-path] missing path");
+                        std::process::exit(1);
+                    }
+                };
+                let layout = stalcraft_jvm_wrapper::paths::classify_target(path);
+                eprintln!("[probe-path] path={}", path);
+                eprintln!("[probe-path] launcher={}", layout.kind.as_str());
+                eprintln!(
+                    "[probe-path] scope={}",
+                    stalcraft_jvm_wrapper::paths::scope_label(path)
+                );
+                eprintln!(
+                    "[probe-path] target_kind={}",
+                    stalcraft_jvm_wrapper::paths::target_kind(path)
+                );
+                eprintln!(
+                    "[probe-path] should_inject={}",
+                    stalcraft_jvm_wrapper::paths::should_inject_jvm(path)
+                );
+                eprintln!(
+                    "[probe-path] wrapper_home={}",
+                    stalcraft_jvm_wrapper::paths::wrapper_home().display()
+                );
+                std::process::exit(0);
+            }
             _ => {}
         }
     }

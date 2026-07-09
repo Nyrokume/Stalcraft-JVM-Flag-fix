@@ -8,12 +8,15 @@ fn main() {
         std::process::exit(1);
     }
 
+    let target = &args[1];
     stalcraft_jvm_wrapper::log::append_wrapper_log_line(&format!(
-        "service_invoked argc={} target={} launcher={} inject={}",
+        "service_invoked argc={} target={} launcher={} scope={} inject={} target_kind={}",
         args.len() - 1,
-        stalcraft_jvm_wrapper::log::redact_path(&args[1]),
-        stalcraft_jvm_wrapper::paths::classify_target(&args[1]).kind.as_str(),
-        stalcraft_jvm_wrapper::ifeo::should_inject_jvm(&args[1])
+        stalcraft_jvm_wrapper::log::redact_path(target),
+        stalcraft_jvm_wrapper::paths::classify_target(target).kind.as_str(),
+        stalcraft_jvm_wrapper::paths::scope_label(target),
+        stalcraft_jvm_wrapper::paths::should_inject_jvm(target),
+        stalcraft_jvm_wrapper::paths::target_kind(target),
     ));
 
     std::process::exit(stalcraft_jvm_wrapper::run_service_mode(&args));

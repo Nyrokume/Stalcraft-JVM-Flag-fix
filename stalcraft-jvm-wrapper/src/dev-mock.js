@@ -31,12 +31,15 @@ javaw.exe: ok`;
 const MOCK_BLOCKING = { active: false };
 
 const MOCK_EXAMPLES = [
-    'balanced_mid',
-    'slow_ddr',
+    'weak',
+    'medium',
+    'max',
     'throughput_v110',
     'x3d_v110',
-    '8khz',
+    'balanced_mid',
+    'slow_ddr',
     'removed_fast_ddr',
+    '8khz',
 ];
 const MOCK_IMPORTED = new Set(['default', '8khz']);
 

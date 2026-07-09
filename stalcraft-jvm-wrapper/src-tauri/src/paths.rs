@@ -196,6 +196,36 @@ pub fn is_game_java(path: &str) -> bool {
     MARKERS.iter().any(|m| lower.contains(&m.to_lowercase()))
 }
 
+pub fn is_game_scoped(path: &str) -> bool {
+    classify_target(path).kind != LauncherKind::Unknown
+}
+
+pub fn target_kind(path: &str) -> &'static str {
+    if is_game_java(path) {
+        "java"
+    } else if is_launcher_binary(path) {
+        "launcher"
+    } else {
+        "other"
+    }
+}
+
+pub fn scope_label(path: &str) -> &'static str {
+    if is_game_scoped(path) {
+        "game"
+    } else {
+        "unknown"
+    }
+}
+
+/// Inject JVM flags into game-scoped launchers and game java/javaw only.
+pub fn should_inject_jvm(path: &str) -> bool {
+    if is_game_java(path) {
+        return true;
+    }
+    is_launcher_binary(path) && is_game_scoped(path)
+}
+
 /// Working / game directory inferred from image path when args lack --gameDir.
 pub fn game_dir_from_target(path: &str) -> Option<PathBuf> {
     let layout = classify_target(path);
@@ -252,5 +282,46 @@ mod tests {
         assert!(!is_runtime_java_bin(
             r"C:\Users\me\AppData\Roaming\EXBO\stalzone.exe"
         ));
+    }
+
+    #[test]
+    fn exbo_runtime_stalzone_injects() {
+        let p = r"C:\Users\me\AppData\Roaming\EXBO\runtime\stalcraft\win64\java\bin\stalzone.exe";
+        assert!(should_inject_jvm(p));
+        assert_eq!(target_kind(p), "launcher");
+        assert_eq!(scope_label(p), "game");
+    }
+
+    #[test]
+    fn exbo_root_stalzone_injects() {
+        let p = r"C:\Users\me\AppData\Roaming\EXBO\stalzone.exe";
+        assert!(should_inject_jvm(p));
+    }
+
+    #[test]
+    fn steam_stalcraftw_injects() {
+        let p = r"D:\Steam\steamapps\common\stalcraft\stalcraftw.exe";
+        let layout = classify_target(p);
+        assert_eq!(layout.kind, LauncherKind::Steam);
+        assert!(should_inject_jvm(p));
+    }
+
+    #[test]
+    fn steam_game_javaw_injects() {
+        let p = r"D:\Steam\steamapps\common\stalcraft\java\bin\javaw.exe";
+        assert!(should_inject_jvm(p));
+        assert_eq!(target_kind(p), "java");
+    }
+
+    #[test]
+    fn system_java_no_inject() {
+        assert!(!should_inject_jvm(r"C:\Program Files\Java\bin\java.exe"));
+        assert_eq!(scope_label(r"C:\Program Files\Java\bin\java.exe"), "unknown");
+    }
+
+    #[test]
+    fn cmd_exe_no_inject() {
+        assert!(!should_inject_jvm(r"C:\Windows\System32\cmd.exe"));
+        assert_eq!(target_kind(r"C:\Windows\System32\cmd.exe"), "other");
     }
 }

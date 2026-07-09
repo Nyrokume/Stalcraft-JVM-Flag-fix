@@ -1,4 +1,6 @@
 const STORAGE_KEY = 'stalcraft-jvm-lang';
+const LAUNCH_PLATFORM_KEY = 'stalcraft-jvm-launch-platform';
+export const LAUNCH_PLATFORMS = ['exbo', 'steam', 'egs', 'vk'];
 
 const STRINGS = {
     en: {
@@ -8,12 +10,21 @@ const STRINGS = {
         statusOnline: 'SYSTEM ONLINE',
         execProtocol: 'EXECUTION PROTOCOL',
         guideTitle: 'How to launch',
-        guideStep1: 'Unpack to %AppData%\\Roaming\\EXBO\\jvm_wrapper\\ — both stalcraft-jvm-wrapper.exe and service.exe',
+        guidePlatform_exbo: 'EXBO',
+        guidePlatform_steam: 'Steam',
+        guidePlatform_egs: 'EGS',
+        guidePlatform_vk: 'VK Play',
+        guidePath_exbo: '%AppData%\\Roaming\\EXBO\\jvm_wrapper\\',
+        guidePath_steam: '…\\steamapps\\common\\STALCRAFT\\jvm_wrapper\\',
+        guidePath_egs: '…\\Epic Games\\STALCRAFT\\jvm_wrapper\\',
+        guidePath_vk: '…\\VK Play\\STALCRAFT\\jvm_wrapper\\',
+        guideStep1: 'Unpack wrapper.zip to {path} — both stalcraft-jvm-wrapper.exe and service.exe',
         guideStep2: 'Click INSTALL and approve the UAC prompt',
-        guideStep3: 'Click VERIFY — all targets must show ok, service.exe: present',
-        guideStep4: 'Fully close the EXBO launcher, then start the game normally',
-        guideStep5: 'Do not run service.exe manually — Windows starts it via IFEO',
-        guideStep6: 'Check logs\\wrapper.log for service_invoked and jvm_mode=INJECTED',
+        guideStep3: 'Click VERIFY — all 6 targets must show ok, service.exe: present',
+        guideStep4: 'Click a JVM preset chip — it imports and applies automatically',
+        guideStep5: 'Fully close the launcher, then start the game normally',
+        guideStep6: 'Do not run service.exe manually — Windows starts it via IFEO',
+        guideStep7: 'Check logs\\wrapper.log: inject=true, jvm_mode=INJECTED, launcher=exbo|steam|…',
         launchWarning: 'IFEO must be ACTIVE before the game starts. Restart the launcher after install.',
         config: 'CONFIGURATION',
         configLoading: 'Loading…',
@@ -22,12 +33,19 @@ const STRINGS = {
         configActiveMissing: 'Active: {name} (missing — will use default)',
         savedProfiles: 'Saved profiles',
         jvmPresets: 'JVM presets (EXBO)',
+        jvmPresetsHint: 'Source: EXBO release history — click a chip to import and apply',
+        preset_weak: 'Weak',
+        preset_medium: 'Medium',
+        preset_max: 'Max',
         preset_balanced_mid: 'Balanced mid DDR',
         preset_slow_ddr: 'Slow DDR',
         preset_throughput_v110: 'Throughput v1.1.0',
         preset_x3d_v110: 'X3D v1.1.0',
         preset_8khz: '8 kHz mouse',
         preset_removed_fast_ddr: 'Fast DDR (removed)',
+        presetHint_weak: 'EXBO v1.0.8 weak tier — low RAM / conservative GC',
+        presetHint_medium: 'EXBO v1.0.8 medium tier — balanced default',
+        presetHint_max: 'EXBO v1.0.8 max tier — high RAM / aggressive tuning',
         presetHint_balanced_mid: 'EXBO v1.1.1+ mid tier — combat-biased default for XMP DDR4 / DDR5',
         presetHint_slow_ddr: 'EXBO v1.1.1+ slow tier — DDR ≤2933 MT/s, looser GC pauses',
         presetHint_throughput_v110: 'EXBO v1.1.0 mainstream throughput profile',
@@ -64,7 +82,7 @@ const STRINGS = {
         ifeo: 'IFEO REGISTRY',
         ifeoInactive: 'INACTIVE',
         ifeoActive: 'ACTIVE',
-        ifeoDesc: 'Hooks stalzone.exe, stalzonew.exe, stalcraft.exe, stalcraftw.exe, game java.exe/javaw.exe via service.exe. Log: logs/wrapper.log',
+        ifeoDesc: 'Hooks game-scoped stalzone.exe, stalzonew.exe, stalcraft.exe, stalcraftw.exe and game java.exe/javaw.exe via service.exe. Log: logs/wrapper.log',
         install: 'INSTALL',
         uninstall: 'UNINSTALL',
         verify: 'VERIFY',
@@ -193,12 +211,21 @@ const STRINGS = {
         statusOnline: 'СИСТЕМА ОНЛАЙН',
         execProtocol: 'ПРОТОКОЛ ЗАПУСКА',
         guideTitle: 'Как запустить',
-        guideStep1: 'Распакуйте в %AppData%\\Roaming\\EXBO\\jvm_wrapper\\ — stalcraft-jvm-wrapper.exe и service.exe',
+        guidePlatform_exbo: 'EXBO',
+        guidePlatform_steam: 'Steam',
+        guidePlatform_egs: 'EGS',
+        guidePlatform_vk: 'VK Play',
+        guidePath_exbo: '%AppData%\\Roaming\\EXBO\\jvm_wrapper\\',
+        guidePath_steam: '…\\steamapps\\common\\STALCRAFT\\jvm_wrapper\\',
+        guidePath_egs: '…\\Epic Games\\STALCRAFT\\jvm_wrapper\\',
+        guidePath_vk: '…\\VK Play\\STALCRAFT\\jvm_wrapper\\',
+        guideStep1: 'Распакуйте wrapper.zip в {path} — stalcraft-jvm-wrapper.exe и service.exe',
         guideStep2: 'Нажмите INSTALL и подтвердите UAC',
-        guideStep3: 'Нажмите VERIFY — все цели ok, service.exe: present',
-        guideStep4: 'Полностью закройте лаунчер EXBO и запустите игру как обычно',
-        guideStep5: 'Не запускайте service.exe вручную — его вызывает Windows через IFEO',
-        guideStep6: 'Проверьте logs\\wrapper.log: service_invoked и jvm_mode=INJECTED',
+        guideStep3: 'Нажмите VERIFY — все 6 целей ok, service.exe: present',
+        guideStep4: 'Нажмите чип пресета JVM — импорт и применение сразу',
+        guideStep5: 'Полностью закройте лаунчер и запустите игру как обычно',
+        guideStep6: 'Не запускайте service.exe вручную — его вызывает Windows через IFEO',
+        guideStep7: 'Проверьте logs\\wrapper.log: inject=true, jvm_mode=INJECTED, launcher=exbo|steam|…',
         launchWarning: 'IFEO должен быть ACTIVE до старта игры. Перезапустите лаунчер после установки.',
         config: 'КОНФИГУРАЦИЯ',
         configLoading: 'Загрузка…',
@@ -207,12 +234,19 @@ const STRINGS = {
         configActiveMissing: 'Активный: {name} (нет файла — будет default)',
         savedProfiles: 'Сохранённые профили',
         jvmPresets: 'Пресеты JVM (EXBO)',
+        jvmPresetsHint: 'Источник: история релизов EXBO — клик по чипу импортирует и применяет',
+        preset_weak: 'Weak',
+        preset_medium: 'Medium',
+        preset_max: 'Max',
         preset_balanced_mid: 'Balanced mid DDR',
         preset_slow_ddr: 'Медленная DDR',
         preset_throughput_v110: 'Throughput v1.1.0',
         preset_x3d_v110: 'X3D v1.1.0',
         preset_8khz: 'Мышь 8 kHz',
         preset_removed_fast_ddr: 'Fast DDR (снят)',
+        presetHint_weak: 'EXBO v1.0.8 weak — мало RAM / мягкий GC',
+        presetHint_medium: 'EXBO v1.0.8 medium — сбалансированный профиль',
+        presetHint_max: 'EXBO v1.0.8 max — много RAM / агрессивная настройка',
         presetHint_balanced_mid: 'EXBO v1.1.1+ mid — боевой профиль для XMP DDR4 / DDR5',
         presetHint_slow_ddr: 'EXBO v1.1.1+ slow — DDR ≤2933 MT/s, более мягкие паузы GC',
         presetHint_throughput_v110: 'EXBO v1.1.0 — throughput для обычных CPU',
@@ -249,7 +283,7 @@ const STRINGS = {
         ifeo: 'IFEO РЕЕСТР',
         ifeoInactive: 'НЕАКТИВЕН',
         ifeoActive: 'АКТИВЕН',
-        ifeoDesc: 'Перехват stalzone.exe, stalzonew.exe, stalcraft.exe, stalcraftw.exe и java.exe/javaw.exe игры через service.exe. Лог: logs/wrapper.log',
+        ifeoDesc: 'Перехват game-scoped stalzone.exe, stalzonew.exe, stalcraft.exe, stalcraftw.exe и java.exe/javaw.exe игры через service.exe. Лог: logs/wrapper.log',
         install: 'УСТАНОВИТЬ',
         uninstall: 'УДАЛИТЬ',
         verify: 'ПРОВЕРКА',
@@ -405,27 +439,63 @@ function setHtml(el, html) {
     if (el) el.innerHTML = html;
 }
 
+export function getLaunchPlatform() {
+    const saved = localStorage.getItem(LAUNCH_PLATFORM_KEY);
+    return LAUNCH_PLATFORMS.includes(saved) ? saved : 'exbo';
+}
+
+export function setLaunchPlatform(platform) {
+    if (!LAUNCH_PLATFORMS.includes(platform)) return;
+    localStorage.setItem(LAUNCH_PLATFORM_KEY, platform);
+    renderLaunchGuide();
+    document.querySelectorAll('.launch-guide-platform').forEach((btn) => {
+        btn.classList.toggle('active', btn.dataset.platform === platform);
+    });
+}
+
+export function setupLaunchGuidePlatforms() {
+    const root = document.getElementById('launch-guide-platforms');
+    if (!root) return;
+    const current = getLaunchPlatform();
+    root.replaceChildren();
+    for (const platform of LAUNCH_PLATFORMS) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = `launch-guide-platform${platform === current ? ' active' : ''}`;
+        btn.dataset.platform = platform;
+        btn.textContent = t(`guidePlatform_${platform}`);
+        btn.addEventListener('click', () => setLaunchPlatform(platform));
+        root.appendChild(btn);
+    }
+}
+
 export function renderLaunchGuide() {
     const root = document.getElementById('launch-guide-steps');
     if (!root) return;
+    const platform = getLaunchPlatform();
+    const path = t(`guidePath_${platform}`);
     const hi = (s) => `<span class="highlight">${s}</span>`;
     const steps = [
-        t('guideStep1'),
+        t('guideStep1', { path }),
         t('guideStep2'),
         t('guideStep3'),
         t('guideStep4'),
         t('guideStep5'),
         t('guideStep6'),
+        t('guideStep7'),
     ];
-    root.innerHTML = steps.map((text, i) => {
+    root.innerHTML = steps.map((text) => {
         let html = text
             .replace(/stalcraft-jvm-wrapper\.exe/g, hi('stalcraft-jvm-wrapper.exe'))
             .replace(/service\.exe/g, hi('service.exe'))
+            .replace(/wrapper\.zip/g, hi('wrapper.zip'))
             .replace(/%AppData%\\Roaming\\EXBO\\jvm_wrapper\\/g, hi('%AppData%\\Roaming\\EXBO\\jvm_wrapper\\'))
+            .replace(/…\\steamapps\\common\\STALCRAFT\\jvm_wrapper\\/g, hi('…\\steamapps\\common\\STALCRAFT\\jvm_wrapper\\'))
+            .replace(/…\\Epic Games\\STALCRAFT\\jvm_wrapper\\/g, hi('…\\Epic Games\\STALCRAFT\\jvm_wrapper\\'))
+            .replace(/…\\VK Play\\STALCRAFT\\jvm_wrapper\\/g, hi('…\\VK Play\\STALCRAFT\\jvm_wrapper\\'))
             .replace(/INSTALL/g, hi('INSTALL'))
             .replace(/VERIFY/g, hi('VERIFY'))
-            .replace(/ACTIVE/g, hi('ACTIVE'))
-            .replace(/service_invoked/g, hi('service_invoked'))
+            .replace(/inject=true/g, hi('inject=true'))
             .replace(/jvm_mode=INJECTED/g, hi('jvm_mode=INJECTED'))
             .replace(/logs\\wrapper\.log/g, hi('logs\\wrapper.log'));
         return `<li>${html}</li>`;
@@ -441,6 +511,7 @@ export function applyI18n() {
     document.querySelectorAll('[data-i18n-placeholder]').forEach((el) => {
         el.placeholder = t(el.dataset.i18nPlaceholder);
     });
+    setupLaunchGuidePlatforms();
     renderLaunchGuide();
     if (typeof window.__renderServerBlocker === 'function') window.__renderServerBlocker();
     updateLangButtons();
