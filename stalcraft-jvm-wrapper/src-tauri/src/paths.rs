@@ -218,12 +218,14 @@ pub fn scope_label(path: &str) -> &'static str {
     }
 }
 
-/// Inject JVM flags into game-scoped launchers and game java/javaw only.
+/// Inject JVM flags for IFEO launcher shims and game java/javaw (EXBO service parity).
+/// Launcher binaries are always injected when IFEO fires — path-independent.
+/// java/javaw stay game-scoped to avoid system JDK false positives.
 pub fn should_inject_jvm(path: &str) -> bool {
-    if is_game_java(path) {
+    if is_launcher_binary(path) {
         return true;
     }
-    is_launcher_binary(path) && is_game_scoped(path)
+    is_game_java(path)
 }
 
 /// Working / game directory inferred from image path when args lack --gameDir.
@@ -311,6 +313,13 @@ mod tests {
         let p = r"D:\Steam\steamapps\common\stalcraft\java\bin\javaw.exe";
         assert!(should_inject_jvm(p));
         assert_eq!(target_kind(p), "java");
+    }
+
+    #[test]
+    fn custom_path_stalzone_injects() {
+        let p = r"E:\Portable\STALCRAFT\stalzone.exe";
+        assert!(should_inject_jvm(p));
+        assert_eq!(scope_label(p), "unknown");
     }
 
     #[test]

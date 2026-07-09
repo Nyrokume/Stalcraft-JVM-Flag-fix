@@ -24,3 +24,4 @@ wrapper.zip
 npm-debug.log*
 .env
 .env.local
+release-staging/

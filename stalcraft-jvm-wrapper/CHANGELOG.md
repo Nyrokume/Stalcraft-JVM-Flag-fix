@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.6.1 (2026-07-09)
+
+- **Launch fix (EXBO parity)**: `resolve_work_dir` fallback matches upstream `process.go` — use exe parent dir, not inferred `runtime\stalcraft` root (fixes `exit_code=1` / critical client error)
+- **IFEO**: launcher shims (`stalzone` / `stalcraftw` / …) inject regardless of install path; `java/javaw` stay game-scoped
+- **Service**: unified `launch()` flow like EXBO `cmd/service/main.go`
+
 ## v1.6.0 (2026-07-09)
 
 - **JVM**: restore EXBO parity — game-scoped injection for launchers (`stalzone` / `stalcraftw` / …) plus game `java.exe` / `javaw.exe`; system Java stays passthrough
