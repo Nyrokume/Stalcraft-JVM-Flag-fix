@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.6.3 (2026-07-09)
+
+- **JVM**: revert service flow to proven `run_inject` / `run_passthrough` (v1.5.4 parity)
+- **Presets**: patch weak/medium/max JSON with v1.1.1 fields; deploy requires new GUI binary
+
 ## v1.6.2 (2026-07-09)
 
 - **Launch fix**: restore `game_dir_from_target` workdir fallback for EXBO runtime (reverts mistaken Go-only `java\bin` cwd from v1.6.1)

@@ -307,9 +307,12 @@ pub fn import_example(name: &str) -> Result<(), String> {
     let src = examples_dir().join(format!("{}.json", name));
     let data =
         std::fs::read_to_string(&src).map_err(|e| format!("read {}: {}", src.display(), e))?;
-    let cfg: Config = serde_json::from_str(&data)
-        .map_err(|e| format!("parse {}: {}", src.display(), e))?;
+    let cfg = parse_config_json(&data, &src.display().to_string())?;
     save(&cfg, name)
+}
+
+fn parse_config_json(data: &str, path_hint: &str) -> Result<Config, String> {
+    serde_json::from_str(data).map_err(|e| format!("parse {}: {}", path_hint, e))
 }
 
 pub fn ensure(sys: &SystemInfo) -> Result<(), String> {

@@ -35,5 +35,11 @@
   "always_act_as_server_class": true,
   "use_xmm_for_array_copy": true,
   "use_fpu_for_spilling": true,
-  "use_large_pages": false
+  "use_large_pages": false,
+  "reflection_inflation_threshold": 0,
+  "auto_box_cache_max": 4096,
+  "use_thread_priorities": true,
+  "thread_priority_policy": 1,
+  "use_counter_decay": false,
+  "compile_threshold_scaling": 0.5
 }
