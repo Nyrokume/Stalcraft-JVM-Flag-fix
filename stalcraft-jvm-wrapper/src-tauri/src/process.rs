@@ -10,7 +10,7 @@ use std::os::windows::ffi::OsStrExt;
 use std::path::Path;
 use std::ptr;
 
-// paths helpers used only for game_dir_from_target removed from resolve_work_dir (EXBO parity)
+use crate::paths;
 
 // ─── NT / Win32 API ───────────────────────────────────────────────────────────
 
@@ -262,7 +262,10 @@ fn resolve_work_dir(abs_path: &str, args: &[String]) -> String {
     if !dir.is_empty() {
         return abs_work_dir(&dir);
     }
-    // EXBO process.go: fallback is filepath.Dir(exe), not inferred game root.
+    // ponytail: EXBO runtime needs stalcraft root, not java\bin — working jvm_wrapper.rar uses this.
+    if let Some(game) = paths::game_dir_from_target(abs_path) {
+        return abs_work_dir(&game.to_string_lossy());
+    }
     abs_work_dir(
         &Path::new(abs_path)
             .parent()

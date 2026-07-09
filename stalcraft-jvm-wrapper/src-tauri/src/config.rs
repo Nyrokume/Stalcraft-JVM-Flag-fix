@@ -98,11 +98,17 @@ pub struct Config {
 
     pub use_large_pages: bool,
 
+    #[serde(default)]
     pub reflection_inflation_threshold: i64,
+    #[serde(default)]
     pub auto_box_cache_max: u64,
+    #[serde(default)]
     pub use_thread_priorities: bool,
+    #[serde(default)]
     pub thread_priority_policy: u64,
+    #[serde(default)]
     pub use_counter_decay: bool,
+    #[serde(default)]
     pub compile_threshold_scaling: f64,
 }
 
@@ -521,5 +527,10 @@ mod tests {
     fn list_examples_ok() {
         let names = list_examples().expect("examples");
         assert!(!names.is_empty());
+    }
+
+    #[test]
+    fn import_exbo_v108_weak_preset() {
+        import_example("weak").expect("weak preset");
     }
 }

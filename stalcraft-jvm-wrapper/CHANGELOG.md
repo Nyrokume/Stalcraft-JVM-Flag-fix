@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.6.2 (2026-07-09)
+
+- **Launch fix**: restore `game_dir_from_target` workdir fallback for EXBO runtime (reverts mistaken Go-only `java\bin` cwd from v1.6.1)
+- **Presets**: `#[serde(default)]` on v1.0.8 fields so weak/medium/max import works
+
 ## v1.6.1 (2026-07-09)
 
 - **Launch fix (EXBO parity)**: `resolve_work_dir` fallback matches upstream `process.go` — use exe parent dir, not inferred `runtime\stalcraft` root (fixes `exit_code=1` / critical client error)
