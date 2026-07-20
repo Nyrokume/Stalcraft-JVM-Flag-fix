@@ -72,8 +72,23 @@ fn run_powershell(script: &str) -> Result<String, String> {
 }
 
 pub fn clear_rules() -> Result<u32, String> {
+    // Remove then verify — do not count attempted removes as success.
     let script = format!(
-        r#"$n = 0; Get-NetFirewallRule -ErrorAction SilentlyContinue | Where-Object {{ $_.DisplayName -like '{prefix}*' }} | ForEach-Object {{ Remove-NetFirewallRule -Name $_.Name -ErrorAction SilentlyContinue; $n++ }}; Write-Output $n"#,
+        r#"
+$removed = 0
+Get-NetFirewallRule -ErrorAction SilentlyContinue |
+  Where-Object {{ $_.DisplayName -like '{prefix}*' }} |
+  ForEach-Object {{
+    Remove-NetFirewallRule -Name $_.Name -ErrorAction SilentlyContinue
+    if (-not (Get-NetFirewallRule -Name $_.Name -ErrorAction SilentlyContinue)) {{ $removed++ }}
+  }}
+$left = @(Get-NetFirewallRule -ErrorAction SilentlyContinue | Where-Object {{ $_.DisplayName -like '{prefix}*' }}).Count
+if ($left -gt 0) {{
+  Write-Error "STALZONE-SB rules remain: $left"
+  exit 1
+}}
+Write-Output $removed
+"#,
         prefix = RULE_PREFIX
     );
     let out = run_powershell(&script)?;

@@ -49,10 +49,15 @@ import {
     pingLevelClass,
     groupByPool,
     hasBlockingSelection,
+    hasResolvableBlocks,
+    hostSetsEqual,
     poolsWithValidPing,
+    pruneSelectionToCatalog,
     resolveBlockedHosts,
     shouldShowServerInMenu,
     mergeAutoBlockUnacceptable,
+    mergeBlockedForScope,
+    mergePreferredByPoolForScope,
     countHiddenServers,
     isUnacceptablePing,
 } from '../src/server-blocker-logic.js';
@@ -77,11 +82,18 @@ const catalog = mergeServerCatalogs(roxyCatalog, ruCatalog);
 
 const servers = flattenServerCatalog(catalog);
 
+const expectedRu = (ruCatalog.pools ?? []).reduce((n, p) => n + (p.tunnels?.length ?? 0), 0);
+const expectedRoxy = (roxyCatalog.pools ?? [])
+    .filter((p) => p.name !== 'MSK2X')
+    .reduce((n, p) => n + (p.tunnels?.length ?? 0), 0);
+const expectedTotal = expectedRu + expectedRoxy;
+
 
 
 test('flattenServerCatalog returns all tunnels', () => {
 
-    assert.equal(servers.length, 77);
+    assert.equal(servers.length, expectedTotal);
+    assert.ok(servers.length >= 60, `catalog too small: ${servers.length}`);
 
     assert.equal(servers[0].id, 'GAME-EU::GAME-EU-2');
 
@@ -103,9 +115,11 @@ test('getRegions returns RU, EU, NA, SEA', () => {
 
 
 
-test('merged catalog has 21 pools', () => {
+test('merged catalog has roxy + RU pools', () => {
 
-    assert.equal(catalog.pools.length, 21);
+    const roxyPools = (roxyCatalog.pools ?? []).filter((p) => p.name !== 'MSK2X').length;
+    const ruPools = (ruCatalog.pools ?? []).length;
+    assert.equal(catalog.pools.length, roxyPools + ruPools);
 
 });
 
@@ -115,7 +129,7 @@ test('RU pools from stalcraftx backend', () => {
 
     const ru = servers.filter((s) => s.filterRegion === 'RU');
 
-    assert.equal(ru.length, 59);
+    assert.equal(ru.length, expectedRu);
 
     assert.ok(ru.some((s) => s.pool === 'MSK1'));
 
@@ -434,8 +448,55 @@ test('mergeAutoBlockUnacceptable marks bad servers blocked in blocklist mode', (
         { id: 'b', pool: 'A' },
     ];
     const pings = { a: 40, b: 250 };
-    const blocked = mergeAutoBlockUnacceptable('blocklist', scope, pings, []);
-    assert.deepEqual(blocked.sort(), ['b']);
+    const result = mergeAutoBlockUnacceptable('blocklist', scope, pings, [], { A: 'b' });
+    assert.deepEqual(result.blocked.sort(), ['b']);
+    assert.equal(result.preferredByPool, null);
+});
+
+test('mergeBlockedForScope preserves other regions', () => {
+    const prev = ['EU::1', 'RU::old'];
+    const scopeIds = ['RU::old', 'RU::new', 'RU::keep'];
+    const next = ['RU::new'];
+    assert.deepEqual(
+        mergeBlockedForScope(prev, scopeIds, next).sort(),
+        ['EU::1', 'RU::new'].sort(),
+    );
+});
+
+test('mergePreferredByPoolForScope keeps other pools', () => {
+    const prev = { MSK1: 'MSK1::1', 'GAME-EU': 'GAME-EU::2' };
+    const scope = [{ id: 'MSK1::2', pool: 'MSK1' }];
+    const next = { MSK1: 'MSK1::2' };
+    assert.deepEqual(
+        mergePreferredByPoolForScope(prev, scope, next),
+        { MSK1: 'MSK1::2', 'GAME-EU': 'GAME-EU::2' },
+    );
+});
+
+test('pruneSelectionToCatalog drops orphans', () => {
+    const servers = [
+        { id: 'A::1', pool: 'A' },
+        { id: 'B::1', pool: 'B' },
+    ];
+    const pruned = pruneSelectionToCatalog(servers, {
+        blocked: ['A::1', 'GONE::1'],
+        pings: { 'A::1': 40, 'GONE::1': 99 },
+        preferredByPool: { A: 'A::1', X: 'X::1' },
+    });
+    assert.deepEqual(pruned.blocked, ['A::1']);
+    assert.deepEqual(pruned.pings, { 'A::1': 40 });
+    assert.deepEqual(pruned.preferredByPool, { A: 'A::1' });
+});
+
+test('hasResolvableBlocks ignores orphan-only selection', () => {
+    const servers = [{ id: 'A::1', host: '1.1.1.1', pool: 'A' }];
+    assert.equal(hasResolvableBlocks(servers, 'blocklist', ['MISSING::1']), false);
+    assert.equal(hasResolvableBlocks(servers, 'blocklist', ['A::1']), true);
+});
+
+test('hostSetsEqual is order-independent', () => {
+    assert.equal(hostSetsEqual(['2.2.2.2', '1.1.1.1'], ['1.1.1.1', '2.2.2.2']), true);
+    assert.equal(hostSetsEqual(['1.1.1.1'], ['1.1.1.1', '2.2.2.2']), false);
 });
 
 test('countHiddenServers tallies bad and missing', () => {

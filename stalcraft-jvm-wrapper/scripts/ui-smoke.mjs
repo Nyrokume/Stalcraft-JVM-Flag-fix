@@ -124,13 +124,13 @@ try {
         await page.waitForTimeout(120);
     });
 
-    await check('Server cards default RU = 59', async () => {
+    await check('Server cards default RU = 55', async () => {
         const cards = await page.locator('.sb-card').count();
-        if (cards !== 59) throw new Error(`expected 59 RU cards by default, got ${cards}`);
+        if (cards !== 55) throw new Error(`expected 55 RU cards by default, got ${cards}`);
     });
 
     await check('Region counts RU/EU/NA/SEA', async () => {
-        for (const [region, expected] of [['RU', 59], ['EU', 10], ['NA', 5], ['SEA', 3]]) {
+        for (const [region, expected] of [['RU', 55], ['EU', 8], ['NA', 5], ['SEA', 3]]) {
             await page.locator(`.sb-chip[data-region="${region}"]`).click();
             await page.waitForTimeout(80);
             const cards = await page.locator('.sb-card').count();
@@ -200,7 +200,7 @@ try {
         const best = await page.locator('.sb-card--best').count();
         if (best !== 2) throw new Error(`expected 2 best cards (EU pools), got ${best}`);
         const blocked = Number(await page.locator('#sb-blocked-badge').textContent());
-        if (blocked !== 8) throw new Error(`expected 8 blocked in EU scope, got ${blocked}`);
+        if (blocked !== 6) throw new Error(`expected 6 blocked in EU scope, got ${blocked}`);
     });
 
     await check('Blocking mock start/stop', async () => {
@@ -225,7 +225,7 @@ try {
         await page.locator('#sb-refresh-btn').click();
         await page.waitForTimeout(500);
         const cards = await page.locator('.sb-card').count();
-        if (cards !== 59) throw new Error(`expected 59 RU cards after refresh, got ${cards}`);
+        if (cards !== 55) throw new Error(`expected 55 RU cards after refresh, got ${cards}`);
     });
 
     await check('Region switch shows one section', async () => {
@@ -235,7 +235,7 @@ try {
         const regions = await page.locator('.sb-region').count();
         if (regions !== 1) throw new Error(`expected 1 region section for EU, got ${regions}`);
         const cards = await page.locator('.sb-card').count();
-        if (cards !== 10) throw new Error(`expected 10 EU cards, got ${cards}`);
+        if (cards !== 8) throw new Error(`expected 8 EU cards, got ${cards}`);
     });
 
     await check('Server blocker i18n EN', async () => {

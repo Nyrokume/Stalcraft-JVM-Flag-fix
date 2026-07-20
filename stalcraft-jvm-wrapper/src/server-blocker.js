@@ -9,13 +9,17 @@ import {
     countHiddenServers,
     formatPingMs,
     groupByPool,
-    hasBlockingSelection,
+    hasResolvableBlocks,
+    hostSetsEqual,
     isVeryBadPing,
     mergeAutoBlockUnacceptable,
+    mergeBlockedForScope,
+    mergePreferredByPoolForScope,
     mockPingMs,
     pickBestPerRegionTopN,
     pingLevelClass,
     poolsWithValidPing,
+    pruneSelectionToCatalog,
     PING_ACCEPTABLE_MAX_MS,
     PING_CHUNK_SIZE,
     resolveBlockedHosts,
@@ -173,11 +177,13 @@ export async function initServerBlocker({ t, invoke = null }) {
     const catalog = mergeServerCatalogs(serverCatalog, ruData);
     const ruPoolOrder = (ruData?.pools ?? []).map((p) => p.name);
     let servers = flattenServerCatalog(catalog);
-    let settings = loadSettings();
+    let settings = pruneSelectionToCatalog(servers, loadSettings());
+    saveSettings(settings);
     let pinging = false;
     let pingProgress = null;
     let blockingActive = false;
     let blockingBusy = false;
+    let appliedHosts = [];
     let wavePhase = 0;
     let waveRaf = null;
 
@@ -227,12 +233,15 @@ export async function initServerBlocker({ t, invoke = null }) {
     }
 
     function applyAutoBlockBad(scope) {
-        settings.blocked = mergeAutoBlockUnacceptable(
+        const result = mergeAutoBlockUnacceptable(
             'blocklist',
             scope,
             settings.pings,
             settings.blocked,
+            settings.preferredByPool,
         );
+        settings.blocked = result.blocked;
+        settings.preferredByPool = result.preferredByPool;
         saveSettings(settings);
     }
 
@@ -369,22 +378,44 @@ export async function initServerBlocker({ t, invoke = null }) {
     function applyAutoBest(scope) {
         const { allowed, preferredByPool } = pickBestPerRegionTopN(settings.pings, scope);
         if (!allowed.length) return false;
-        settings.preferredByPool = preferredByPool;
-        settings.blocked = computeSelectionAllowed('blocklist', scope, allowed);
+        const scopeIds = scope.map((s) => s.id);
+        const nextBlocked = computeSelectionAllowed('blocklist', scope, allowed);
+        settings.blocked = mergeBlockedForScope(settings.blocked, scopeIds, nextBlocked);
+        settings.preferredByPool = mergePreferredByPoolForScope(
+            settings.preferredByPool,
+            scope,
+            preferredByPool,
+        );
         saveSettings(settings);
         return true;
     }
 
+    function selectionDirty() {
+        if (!blockingActive) return false;
+        return !hostSetsEqual(appliedHosts, blockedHostsForFirewall());
+    }
+
+    function markSelectionChanged() {
+        if (selectionDirty()) {
+            statusMessage = t('sbRulesOutOfDate');
+        }
+    }
+
     function renderBadge() {
-        const denied = servers.filter((s) => isDenied(s.id)).length;
+        const regionServers = serversInRegion();
+        const denied = regionServers.filter((s) => isDenied(s.id)).length;
+        const globalDenied = servers.filter((s) => isDenied(s.id)).length;
         if (!els.blockedBadge) return;
         els.blockedBadge.textContent = String(denied);
-        els.blockedBadge.classList.toggle('has-blocked', denied > 0);
+        els.blockedBadge.classList.toggle('has-blocked', denied > 0 || globalDenied > 0);
         const bestCount = settings.preferredByPool
             ? Object.keys(settings.preferredByPool).length
             : 0;
-        const hint = bestCount > 0
-            ? `${t('sbStatusConfigured')} · ${bestCount} ${t('sbBestPoolsShort')}`
+        const parts = [];
+        if (bestCount > 0) parts.push(`${bestCount} ${t('sbBestPoolsShort')}`);
+        if (globalDenied !== denied) parts.push(`${globalDenied} ${t('sbBlockedShort')} ${t('sbGlobalShort')}`);
+        const hint = parts.length
+            ? `${t('sbStatusConfigured')} · ${parts.join(' · ')}`
             : denied > 0
                 ? t('sbStatusConfigured')
                 : t('sbStatusIdle');
@@ -496,7 +527,8 @@ export async function initServerBlocker({ t, invoke = null }) {
         renderProgressViz();
         if (blockingActive) {
             const rules = blockingRuleCount > 0 ? ` · ${blockingRuleCount}` : '';
-            els.statusLabel.textContent = `${t('sbBlockingActive')}${rules}`;
+            const dirty = selectionDirty() ? ` · ${t('sbRulesOutOfDateShort')}` : '';
+            els.statusLabel.textContent = `${t('sbBlockingActive')}${rules}${dirty}`;
             els.statusLabel.className = 'sb-status-label is-active';
             return;
         }
@@ -515,13 +547,30 @@ export async function initServerBlocker({ t, invoke = null }) {
     }
 
     function updateBlockingButtons() {
-        const canSelect = hasBlockingSelection(servers, 'blocklist', settings.blocked);
+        const canResolve = hasResolvableBlocks(servers, 'blocklist', settings.blocked);
+        const dirty = selectionDirty();
+        const busy = blockingBusy || pinging;
         if (els.startBtn) {
-            els.startBtn.disabled = blockingBusy || blockingActive || !invoke || !canSelect;
+            // While active: Start becomes "Apply" when selection diverges from firewall.
+            const enableStart = Boolean(invoke)
+                && !busy
+                && canResolve
+                && (!blockingActive || dirty);
+            els.startBtn.disabled = !enableStart;
+            const label = els.startBtn.querySelector('[data-i18n]');
+            if (label) {
+                label.textContent = blockingActive && dirty
+                    ? t('sbApplyChanges')
+                    : t('sbStartBlock');
+            }
         }
         if (els.stopBtn) {
-            els.stopBtn.disabled = blockingBusy || !invoke || !blockingActive;
+            els.stopBtn.disabled = busy || !invoke || !blockingActive;
         }
+        if (els.resetBtn) els.resetBtn.disabled = busy;
+        if (els.refreshBtn) els.refreshBtn.disabled = busy;
+        if (els.pingBtn) els.pingBtn.disabled = busy;
+        if (els.autoBestBtn) els.autoBestBtn.disabled = busy;
     }
 
     function renderRegionChips() {
@@ -539,7 +588,7 @@ export async function initServerBlocker({ t, invoke = null }) {
     function renderServerCard(srv) {
         const denied = isDenied(srv.id);
         const accessKey = denied ? 'sbBlocked' : 'sbAllowed';
-        const isBest = settings.preferredByPool?.[srv.pool] === srv.id;
+        const isBest = !denied && settings.preferredByPool?.[srv.pool] === srv.id;
         const ping = pingLabel(srv);
         const pingClass = pingClassFor(srv.id);
         const bestClass = isBest ? ' sb-card--best' : '';
@@ -577,14 +626,16 @@ export async function initServerBlocker({ t, invoke = null }) {
             return;
         }
         els.pools.innerHTML = groups.map((g) => {
-            const deniedInRegion = g.servers.filter((s) => isDenied(s.id)).length;
+            const regionAll = serversInRegion(g.region);
+            const deniedInRegion = regionAll.filter((s) => isDenied(s.id)).length;
             const cardsHtml = g.zones.map((z) => {
-                    const deniedInZone = z.servers.filter((s) => isDenied(s.id)).length;
+                    const poolAll = regionAll.filter((s) => s.pool === z.pool);
+                    const deniedInZone = poolAll.filter((s) => isDenied(s.id)).length;
                     return `
                         <div class="sb-pool-zone" data-pool="${escapeHtml(z.pool)}">
                             <header class="sb-pool-zone-head">
                                 <h4 class="sb-pool-zone-title">${escapeHtml(z.pool)}</h4>
-                                <span class="sb-pool-zone-meta">${z.servers.length} · ${deniedInZone} ${t('sbBlockedShort')}</span>
+                                <span class="sb-pool-zone-meta">${poolAll.length} · ${deniedInZone} ${t('sbBlockedShort')}</span>
                             </header>
                             <div class="sb-card-grid">
                                 ${z.servers.map(renderServerCard).join('')}
@@ -598,7 +649,7 @@ export async function initServerBlocker({ t, invoke = null }) {
                             <h3 class="sb-region-title ${regionClass(g.region)}">${escapeHtml(regionLabel(g.region, t))}</h3>
                             <span class="sb-region-code">${escapeHtml(g.region)}</span>
                         </div>
-                        <span class="sb-region-meta">${g.servers.length} · ${deniedInRegion} ${t('sbBlockedShort')}</span>
+                        <span class="sb-region-meta">${regionAll.length} · ${deniedInRegion} ${t('sbBlockedShort')}</span>
                     </header>
                     ${cardsHtml}
                 </section>`;
@@ -618,16 +669,17 @@ export async function initServerBlocker({ t, invoke = null }) {
                     settings.preferredByPool = Object.keys(next).length ? next : null;
                 }
                 saveSettings(settings);
+                markSelectionChanged();
                 renderBadge();
                 updateBlockingButtons();
+                renderStatus();
                 renderServerList();
             });
         });
     }
 
-    function setActionLoading(loading) {
-        if (els.pingBtn) els.pingBtn.disabled = loading;
-        if (els.autoBestBtn) els.autoBestBtn.disabled = loading;
+    function setActionLoading(_loading) {
+        updateBlockingButtons();
     }
 
     function render() {
@@ -653,17 +705,41 @@ export async function initServerBlocker({ t, invoke = null }) {
         renderServerList();
     });
 
-    els.resetBtn?.addEventListener('click', () => {
+    els.resetBtn?.addEventListener('click', async () => {
+        if (blockingBusy || pinging) return;
         settings = structuredClone(DEFAULT_SETTINGS);
         saveSettings(settings);
         if (els.search) els.search.value = '';
+        statusMessage = '';
+        if (invoke && (blockingActive || blockingRuleCount > 0)) {
+            blockingBusy = true;
+            updateBlockingButtons();
+            renderStatus();
+            try {
+                await invoke('stop_server_blocking');
+                blockingActive = false;
+                appliedHosts = [];
+                statusMessage = t('sbResetCleared');
+            } catch (err) {
+                console.error('reset stop_server_blocking failed:', err);
+                statusMessage = t('sbBlockFailed', { err: String(err) });
+            } finally {
+                blockingBusy = false;
+                await syncBlockingStatus();
+            }
+        } else {
+            appliedHosts = [];
+            statusMessage = t('sbResetClearedLocal');
+        }
         render();
     });
 
     els.pingBtn?.addEventListener('click', async () => {
+        if (blockingBusy || pinging) return;
         setActionLoading(true);
         const scope = serversInRegion();
         const ok = await runPing(scope);
+        markSelectionChanged();
         if (ok > 0) {
             const hidden = countHiddenServers(scope, settings.pings);
             statusMessage = hidden > 0
@@ -677,6 +753,7 @@ export async function initServerBlocker({ t, invoke = null }) {
     });
 
     els.autoBestBtn?.addEventListener('click', async () => {
+        if (blockingBusy || pinging) return;
         const scope = serversInRegion();
         setActionLoading(true);
         const poolTotal = new Set(scope.map((s) => s.pool)).size;
@@ -685,17 +762,19 @@ export async function initServerBlocker({ t, invoke = null }) {
         }
         applyAutoBlockBad(scope);
         const ok = applyAutoBest(scope);
+        markSelectionChanged();
         if (!ok) {
             statusMessage = t('sbAutoBestNoPing');
         } else {
+            const preferredCount = Object.keys(settings.preferredByPool ?? {}).length;
             const hidden = countHiddenServers(scope, settings.pings);
             statusMessage = hidden > 0
                 ? t('sbAutoBestDoneHidden', {
-                    pools: Object.keys(settings.preferredByPool ?? {}).length,
+                    pools: preferredCount,
                     hidden,
                 })
                 : t('sbAutoBestDone', {
-                    pools: Object.keys(settings.preferredByPool ?? {}).length,
+                    pools: preferredCount,
                 });
         }
         setActionLoading(false);
@@ -703,15 +782,21 @@ export async function initServerBlocker({ t, invoke = null }) {
     });
 
     els.startBtn?.addEventListener('click', async () => {
-        if (!invoke) return;
+        if (!invoke || blockingBusy || pinging) return;
         const ips = blockedHostsForFirewall();
-        if (!ips.length) return;
+        if (!ips.length) {
+            statusMessage = t('sbNoHostsToBlock');
+            renderStatus();
+            updateBlockingButtons();
+            return;
+        }
         blockingBusy = true;
+        statusMessage = '';
         renderStatus();
         updateBlockingButtons();
         try {
             const msg = await invoke('start_server_blocking', { ips });
-            blockingActive = true;
+            appliedHosts = [...ips];
             statusMessage = t('sbBlockSuccess');
             console.info(msg);
         } catch (err) {
@@ -720,19 +805,20 @@ export async function initServerBlocker({ t, invoke = null }) {
         } finally {
             blockingBusy = false;
             await syncBlockingStatus();
+            if (blockingActive) appliedHosts = [...ips];
             render();
         }
     });
 
     els.stopBtn?.addEventListener('click', async () => {
-        if (!invoke) return;
+        if (!invoke || blockingBusy || pinging) return;
         blockingBusy = true;
         statusMessage = '';
         renderStatus();
         updateBlockingButtons();
         try {
             const msg = await invoke('stop_server_blocking');
-            blockingActive = false;
+            appliedHosts = [];
             statusMessage = t('sbBlockStopped');
             console.info(msg);
         } catch (err) {
@@ -741,19 +827,57 @@ export async function initServerBlocker({ t, invoke = null }) {
         } finally {
             blockingBusy = false;
             await syncBlockingStatus();
+            if (!blockingActive) appliedHosts = [];
             render();
         }
     });
 
     els.refreshBtn?.addEventListener('click', async () => {
+        if (blockingBusy || pinging) return;
         if (els.refreshBtn) els.refreshBtn.disabled = true;
         const fresh = await fetchRuCatalog();
         servers = flattenServerCatalog(mergeServerCatalogs(serverCatalog, fresh));
+        settings = pruneSelectionToCatalog(servers, settings);
+        saveSettings(settings);
+        const hosts = blockedHostsForFirewall();
+        if (blockingActive && invoke) {
+            if (!hosts.length) {
+                blockingBusy = true;
+                try {
+                    await invoke('stop_server_blocking');
+                    appliedHosts = [];
+                    statusMessage = t('sbRefreshStoppedEmpty');
+                } catch (err) {
+                    statusMessage = t('sbBlockFailed', { err: String(err) });
+                } finally {
+                    blockingBusy = false;
+                    await syncBlockingStatus();
+                }
+            } else if (!hostSetsEqual(hosts, appliedHosts)) {
+                blockingBusy = true;
+                try {
+                    await invoke('start_server_blocking', { ips: hosts });
+                    appliedHosts = [...hosts];
+                    statusMessage = t('sbRefreshReapplied');
+                } catch (err) {
+                    statusMessage = t('sbBlockFailed', { err: String(err) });
+                } finally {
+                    blockingBusy = false;
+                    await syncBlockingStatus();
+                    if (blockingActive) appliedHosts = [...hosts];
+                }
+            } else {
+                statusMessage = t('sbRefreshDone');
+            }
+        } else {
+            statusMessage = t('sbRefreshDone');
+        }
         render();
         if (els.refreshBtn) els.refreshBtn.disabled = false;
     });
 
     await syncBlockingStatus();
+    if (blockingActive) appliedHosts = blockedHostsForFirewall();
     render();
     return {
         render,

@@ -32,6 +32,9 @@
 
 Каталог RU: `https://backend.stalcraftx.ru/address_list?login=User`
 
+Обновление bundled JSON: `npm run refresh:servers`  
+(`scripts/refresh-server-catalog.mjs` — RU live + EU/NA/SEA из [unofficial-stalzone-api](https://github.com/Art3mLapa/unofficial-stalzone-api) `static/address_list`).
+
 ---
 
 ## 3. Схема `address_list` v2 (черновик)

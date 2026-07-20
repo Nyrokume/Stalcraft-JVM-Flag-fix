@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.6.5 (2026-07-20)
+
+- **Server Blocker**: refresh bundled catalogs (RU 55 + EU/NA/SEA 16 = 71) via `npm run refresh:servers`
+- **Server Blocker**: fix block/unblock — region-safe auto-best, Reset clears firewall, Apply while active, prune orphans on refresh, verified `clear_rules`
+
 ## v1.6.4 (2026-07-09)
 
 - **Launch fix**: ship known-good `vendor/service.exe` (537088) — current Rust `service` build regressed `exit_code=1` on EXBO `stalzone.exe`

@@ -103,6 +103,68 @@ export function computeSelectionAllowed(mode, servers, allowedIds) {
 }
 
 /**
+ * Merge scope selection into global blocked list without wiping other regions.
+ * Removes previous blocked ids that belong to `scopeIds`, then adds `nextInScope`.
+ */
+export function mergeBlockedForScope(prevBlocked, scopeIds, nextInScope) {
+    const scope = new Set(scopeIds);
+    const kept = (prevBlocked ?? []).filter((id) => !scope.has(id));
+    return [...new Set([...kept, ...(nextInScope ?? [])])];
+}
+
+/**
+ * Merge preferred-by-pool for pools present in scope only; keep other regions' prefs.
+ */
+export function mergePreferredByPoolForScope(prevPreferred, scopeServers, nextPreferred) {
+    const scopePools = new Set((scopeServers ?? []).map((s) => s.pool));
+    const out = {};
+    if (prevPreferred && typeof prevPreferred === 'object') {
+        for (const [pool, id] of Object.entries(prevPreferred)) {
+            if (!scopePools.has(pool)) out[pool] = id;
+        }
+    }
+    if (nextPreferred && typeof nextPreferred === 'object') {
+        for (const [pool, id] of Object.entries(nextPreferred)) {
+            if (scopePools.has(pool)) out[pool] = id;
+        }
+    }
+    return Object.keys(out).length ? out : null;
+}
+
+/** Drop blocked / pings / preferred entries whose ids are no longer in the catalog. */
+export function pruneSelectionToCatalog(servers, settings) {
+    const ids = new Set((servers ?? []).map((s) => s.id));
+    const pools = new Set((servers ?? []).map((s) => s.pool));
+    const blocked = (settings.blocked ?? []).filter((id) => ids.has(id));
+    const pings = {};
+    for (const [id, ms] of Object.entries(settings.pings ?? {})) {
+        if (ids.has(id)) pings[id] = ms;
+    }
+    let preferredByPool = null;
+    if (settings.preferredByPool && typeof settings.preferredByPool === 'object') {
+        const next = {};
+        for (const [pool, id] of Object.entries(settings.preferredByPool)) {
+            if (pools.has(pool) && ids.has(id)) next[pool] = id;
+        }
+        preferredByPool = Object.keys(next).length ? next : null;
+    }
+    return { ...settings, blocked, pings, preferredByPool };
+}
+
+/** True when selection resolves to at least one firewall host. */
+export function hasResolvableBlocks(servers, mode, selectedIds) {
+    return resolveBlockedHosts(servers, mode, selectedIds).length > 0;
+}
+
+/** Compare two host lists (order-independent). */
+export function hostSetsEqual(a, b) {
+    const left = [...new Set((a ?? []).filter(Boolean))].sort();
+    const right = [...new Set((b ?? []).filter(Boolean))].sort();
+    if (left.length !== right.length) return false;
+    return left.every((v, i) => v === right[i]);
+}
+
+/**
  * Mode-aware selection after auto-best.
  * blocklist: settings.blocked = all except best per pool
  * allowlist: settings.blocked (= allowed) = only best per pool
@@ -147,17 +209,28 @@ export function shouldShowServerInMenu(pingMap, serverId, { pinging = false } = 
     return true;
 }
 
-/** Blocklist: mark bad/null as blocked. Allowlist: remove them from allowed set. */
-export function mergeAutoBlockUnacceptable(mode, servers, pingMap, currentBlocked) {
+/**
+ * Blocklist: mark bad/null as blocked.
+ * Allowlist: remove them from allowed set.
+ * Clears preferredByPool entries that become unacceptable (no BEST+Blocked).
+ */
+export function mergeAutoBlockUnacceptable(mode, servers, pingMap, currentBlocked, preferredByPool = null) {
     const set = new Set(currentBlocked);
+    const preferred = preferredByPool && typeof preferredByPool === 'object'
+        ? { ...preferredByPool }
+        : null;
     for (const srv of servers) {
         if (!(srv.id in pingMap)) continue;
         const ms = pingMap[srv.id];
         if (!isUnacceptablePing(ms)) continue;
         if (mode === 'blocklist') set.add(srv.id);
         else set.delete(srv.id);
+        if (preferred?.[srv.pool] === srv.id) delete preferred[srv.pool];
     }
-    return [...set];
+    return {
+        blocked: [...set],
+        preferredByPool: preferred && Object.keys(preferred).length ? preferred : null,
+    };
 }
 
 export function countHiddenServers(servers, pingMap, { pinging = false } = {}) {

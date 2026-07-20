@@ -93,7 +93,7 @@ Import presets from the **CONFIGURATION** panel (chips) or copy JSON to `configs
 ## Features (v1.5.4)
 
 - [EXBO v1.1.2](https://github.com/EXBO-Community/stalcraft-jvm-optimization/releases/tag/v1.1.2) JVM generate parity
-- Server Blocker GA: 77 servers, ping, auto-best top-3/region, firewall blocking
+- Server Blocker GA: 71 servers (live RU + EU/NA/SEA), ping, auto-best top-3/region, firewall blocking; refresh via `npm run refresh:servers`
 - JVM preset library from EXBO release history
 - Two-step startup: license + author info (once per install via localStorage)
 - Hardware detection: CPUID, WMI, registry (multi-view)
