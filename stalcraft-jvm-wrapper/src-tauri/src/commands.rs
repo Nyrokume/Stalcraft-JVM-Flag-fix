@@ -55,7 +55,7 @@ pub fn get_system_info() -> Result<SystemInfoResponse, String> {
 pub fn install_ifeo() -> Result<String, String> {
     if !ifeo::service_ready() {
         return Err(
-            "service.exe not found next to this app — unpack wrapper.zip and keep both exes in the same folder".to_string(),
+            "service.exe not found next to this app — unpack wrapper.zip into …\\EXBO\\jvm_wrapper\\ (keep both exes together)".to_string(),
         );
     }
     if ifeo::is_admin() {
@@ -105,7 +105,7 @@ pub fn find_game_processes() -> Result<crate::process::GameProcessSearchResult, 
 pub fn repair_ifeo() -> Result<String, String> {
     if !ifeo::service_ready() {
         return Err(
-            "service.exe not found next to this app — unpack wrapper.zip and keep both exes in the same folder".to_string(),
+            "service.exe not found next to this app — unpack wrapper.zip into …\\EXBO\\jvm_wrapper\\ (keep both exes together)".to_string(),
         );
     }
     if ifeo::is_admin() {

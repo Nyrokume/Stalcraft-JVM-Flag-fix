@@ -64,6 +64,58 @@ pub fn wrapper_home() -> PathBuf {
     PathBuf::from(JVM_WRAPPER_DIR)
 }
 
+/// True when `dir` is named `jvm_wrapper` (case-insensitive).
+pub fn is_jvm_wrapper_dir(dir: &Path) -> bool {
+    dir.file_name()
+        .and_then(|n| n.to_str())
+        .map(|n| n.eq_ignore_ascii_case(JVM_WRAPPER_DIR))
+        .unwrap_or(false)
+}
+
+fn path_has_exbo_segment(dir: &Path) -> bool {
+    dir.components().any(|c| {
+        c.as_os_str()
+            .to_str()
+            .map(|s| s.eq_ignore_ascii_case("EXBO"))
+            .unwrap_or(false)
+    })
+}
+
+/// Known-good portable homes for each launcher (must contain service.exe after unpack).
+/// Used when the GUI was started from a misnamed folder (e.g. `EXBO\STALZONE JVM Wrapper`).
+pub fn known_wrapper_homes() -> Vec<PathBuf> {
+    let mut out = Vec::new();
+    if let Some(layout) = LauncherLayout::exbo() {
+        out.push(layout.wrapper);
+    }
+    // Common Steam library roots — best-effort; missing paths are skipped by callers.
+    if let Some(program_files) = std::env::var_os("ProgramFiles") {
+        out.push(
+            PathBuf::from(program_files)
+                .join(r"Steam\steamapps\common\STALCRAFT")
+                .join(JVM_WRAPPER_DIR),
+        );
+    }
+    if let Some(program_files_x86) = std::env::var_os("ProgramFiles(x86)") {
+        out.push(
+            PathBuf::from(program_files_x86)
+                .join(r"Steam\steamapps\common\STALCRAFT")
+                .join(JVM_WRAPPER_DIR),
+        );
+    }
+    out
+}
+
+/// Whether `dir` is safe to register as IFEO Debugger home without remapping.
+/// Under EXBO, only `jvm_wrapper` is accepted — product-name folders break every launch.
+pub fn is_safe_ifeo_home(dir: &Path) -> bool {
+    if is_jvm_wrapper_dir(dir) {
+        return true;
+    }
+    // Portable unpack outside EXBO (Desktop, D:\tools\, LocalAppData install, …).
+    !path_has_exbo_segment(dir)
+}
+
 pub fn configs_dir() -> PathBuf {
     wrapper_home().join("configs")
 }
@@ -360,5 +412,18 @@ mod tests {
             #[cfg(debug_assertions)]
             assert!(got.ends_with("examples"));
         }
+    }
+
+    #[test]
+    fn safe_ifeo_home_rejects_misnamed_exbo_folder() {
+        assert!(is_jvm_wrapper_dir(Path::new(r"C:\Users\x\AppData\Roaming\EXBO\jvm_wrapper")));
+        assert!(is_safe_ifeo_home(Path::new(r"C:\Users\x\AppData\Roaming\EXBO\jvm_wrapper")));
+        assert!(!is_safe_ifeo_home(Path::new(
+            r"C:\Users\x\AppData\Roaming\EXBO\STALZONE JVM Wrapper"
+        )));
+        assert!(is_safe_ifeo_home(Path::new(r"D:\tools\stalcraft-wrapper")));
+        assert!(is_safe_ifeo_home(Path::new(
+            r"C:\Users\x\AppData\Local\STALZONE JVM Wrapper"
+        )));
     }
 }

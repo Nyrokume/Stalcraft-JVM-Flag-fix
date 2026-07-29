@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.7.1 (2026-07-30)
+
+- **IFEO fix**: never register Debugger under misnamed `EXBO\STALZONE JVM Wrapper\` — prefer canonical `…\EXBO\jvm_wrapper\service.exe` (and other `jvm_wrapper` homes) so flags inject on every game launch
+- **INSTALL/REPAIR**: remap + log when GUI was started from a non-canonical EXBO folder
+- **Docs**: unpack path must be named `jvm_wrapper`; Find Game PID is detection only — inject is always IFEO-at-create
+
 ## v1.7.0 (2026-07-30)
 
 - **UI**: Claude Code / Cursor dark theme; config / hardware / IFEO / servers layouts; preset description; concise launch guide

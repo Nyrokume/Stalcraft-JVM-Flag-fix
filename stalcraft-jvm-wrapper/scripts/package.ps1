@@ -81,17 +81,22 @@ Copy-Item (Join-Path $Root "examples") $examplesDest -Recurse -Force
 $portableTxt = @"
 STALZONE JVM Wrapper — portable package
 =======================================
-1. Unpack this folder anywhere (Desktop, game jvm_wrapper\, USB, …).
+1. Unpack into a folder named jvm_wrapper (required for EXBO):
+     %AppData%\Roaming\EXBO\jvm_wrapper\
+   or …\steamapps\common\STALCRAFT\jvm_wrapper\
 2. Keep these files together:
      stalcraft-jvm-wrapper.exe
      service.exe
      examples\
 3. Run stalcraft-jvm-wrapper.exe → INSTALL (UAC) → VERIFY → pick a JVM preset.
 4. Fully quit the game launcher, then start the game normally.
-5. Do NOT run service.exe manually (Windows starts it via IFEO).
-6. If you move this folder later: open the GUI and click REPAIR.
+5. Do NOT run service.exe manually (Windows starts it via IFEO on every launch).
+6. Find Game (PID) only checks that the client is running — flags are applied
+   by IFEO when the process is created, not after PID discovery.
+7. If you move this folder later: open the GUI and click REPAIR.
+8. Never unpack as EXBO\STALZONE JVM Wrapper\ — that breaks IFEO.
 
-Configs and logs are created next to the .exe (portable, any PC).
+Configs and logs are created next to the .exe.
 "@
 Set-Content -Path (Join-Path $Stage "PORTABLE.txt") -Value $portableTxt -Encoding UTF8
 

@@ -151,21 +151,57 @@ pub fn service_ready() -> bool {
 }
 
 fn resolve_service() -> Result<PathBuf, String> {
-    // Prefer exe-adjacent service.exe (distribution root = wherever the zip was unpacked).
+    // 1) Prefer exe-adjacent service.exe when the folder is a safe IFEO home
+    //    (named jvm_wrapper, or outside EXBO — e.g. LocalAppData installer / portable zip).
+    let mut unsafe_adjacent: Option<PathBuf> = None;
     if let Ok(self_path) = std::env::current_exe() {
         if let Some(dir) = self_path.parent() {
             let beside = dir.join(SERVICE_NAME);
             if beside.is_file() {
-                return canonical_service_path(&beside);
+                if paths::is_safe_ifeo_home(dir) {
+                    return canonical_service_path(&beside);
+                }
+                // e.g. %AppData%\EXBO\STALZONE JVM Wrapper\service.exe — do NOT register this.
+                unsafe_adjacent = Some(beside);
             }
         }
     }
+
+    // 2) Canonical launcher homes (EXBO\jvm_wrapper, Steam\...\jvm_wrapper, …)
+    for home in paths::known_wrapper_homes() {
+        let svc = home.join(SERVICE_NAME);
+        if svc.is_file() {
+            let resolved = canonical_service_path(&svc)?;
+            if let Some(ref bad) = unsafe_adjacent {
+                if normalize_path_key(&bad.to_string_lossy())
+                    != normalize_path_key(&resolved.to_string_lossy())
+                {
+                    log::append_wrapper_log_line(&format!(
+                        "IFEO service_path remapped from={} to={} reason=prefer_jvm_wrapper",
+                        log::redact_path(&bad.to_string_lossy()),
+                        log::redact_path(&resolved.to_string_lossy())
+                    ));
+                }
+            }
+            return Ok(resolved);
+        }
+    }
+
+    // 3) Last resort: adjacent file even if under a misnamed EXBO folder (better than nothing).
+    if let Some(beside) = unsafe_adjacent {
+        log::append_wrapper_log_line(&format!(
+            "IFEO service_path warn path={} reason=non_canonical_exbo_folder_unpack_to_jvm_wrapper",
+            log::redact_path(&beside.to_string_lossy())
+        ));
+        return canonical_service_path(&beside);
+    }
+
     let service = paths::wrapper_home().join(SERVICE_NAME);
     if service.is_file() {
         return canonical_service_path(&service);
     }
     Err(format!(
-        "{} not found next to this exe ({}) — keep both exes in the same folder after unpacking wrapper.zip",
+        "{} not found next to this exe ({}) — unpack wrapper.zip into …\\EXBO\\jvm_wrapper\\ (or game\\jvm_wrapper\\) and keep both exes together",
         SERVICE_NAME,
         paths::wrapper_home().display()
     ))
@@ -464,7 +500,7 @@ pub fn health() -> IfeoHealth {
         ));
     } else {
         lines.push(
-            "service.exe: MISSING — keep service.exe next to stalcraft-jvm-wrapper.exe after unpack"
+            "service.exe: MISSING — unpack into …\\jvm_wrapper\\ next to stalcraft-jvm-wrapper.exe"
                 .to_string(),
         );
     }

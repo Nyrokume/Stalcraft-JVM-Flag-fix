@@ -2,7 +2,7 @@
 
 Порт [stalcraft-jvm-optimization](https://github.com/EXBO-Community/stalcraft-jvm-optimization) для **STALZONE** (EXBO, Steam, EGS, VK Play).
 
-**Актуальный релиз:** [v1.7.0](https://github.com/Nyrokume/Stalcraft-JVM-Flag-Fix/releases/latest) · `wrapper.zip` · Setup.exe
+**Актуальный релиз:** [v1.7.1](https://github.com/Nyrokume/Stalcraft-JVM-Flag-Fix/releases/latest) · `wrapper.zip` · Setup.exe
 
 ## Скриншоты
 
