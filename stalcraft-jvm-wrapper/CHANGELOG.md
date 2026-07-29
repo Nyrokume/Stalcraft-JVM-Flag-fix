@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.7.0 (2026-07-30)
+
+- **UI**: Claude Code / Cursor dark theme; config / hardware / IFEO / servers layouts; preset description; concise launch guide
+- **Alerts**: toast notifications for IFEO / preset / Server Blocker actions; confirm before UNINSTALL and SB Reset
+- **Portable**: `wrapper_home` = exe folder; `PORTABLE.txt` in zip; release packaging requires `vendor\service.exe`
+- **Installer**: Inno Setup `STALZONE-JVM-Wrapper-Setup-1.7.0.exe` (LocalAppData, optional IFEO task)
+- **IFEO**: VERIFY detects moved `service.exe`; clearer unpack errors
+- **Server Blocker**: live catalog refresh (RU+EU+NA+SEA) with localStorage cache
+
 ## v1.6.5 (2026-07-20)
 
 - **Server Blocker**: refresh bundled catalogs (RU 55 + EU/NA/SEA 16 = 71) via `npm run refresh:servers`

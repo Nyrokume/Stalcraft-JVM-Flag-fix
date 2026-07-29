@@ -63,6 +63,42 @@ fn main() {
                 }
                 std::process::exit(0);
             }
+            "--verify" => {
+                let h = stalcraft_jvm_wrapper::ifeo::health();
+                eprintln!("[verify]\n{}", h.summary);
+                std::process::exit(if h.all_ok { 0 } else { 1 });
+            }
+            "--find-game" => {
+                // Exit 0 when game running, 2 when not — never invents PIDs.
+                let r = stalcraft_jvm_wrapper::process::find_game_processes();
+                cli_print(&format!("[find-game] running={}", r.running));
+                for p in &r.processes {
+                    cli_print(&format!(
+                        "[find-game] pid={} name={} kind={} launcher={} window={} path={}",
+                        p.pid, p.name, p.kind, p.launcher, p.has_window, p.path
+                    ));
+                }
+                match &r.primary {
+                    Some(p) => cli_print(&format!(
+                        "[find-game] primary={} name={} launcher={}",
+                        p.pid, p.name, p.launcher
+                    )),
+                    None => cli_print("[find-game] primary=none"),
+                }
+                std::process::exit(if r.running { 0 } else { 2 });
+            }
+            "--repair" => {
+                match stalcraft_jvm_wrapper::ifeo::repair() {
+                    Ok(msg) => {
+                        eprintln!("[repair] {}", msg);
+                        std::process::exit(0);
+                    }
+                    Err(e) => {
+                        eprintln!("[repair] failed: {}", e);
+                        std::process::exit(1);
+                    }
+                }
+            }
             "--sb-apply" => {
                 let path = match args.get(2) {
                     Some(p) => p,
@@ -156,6 +192,9 @@ fn main() {
             install_ifeo,
             uninstall_ifeo,
             check_status,
+            verify_ifeo,
+            repair_ifeo,
+            find_game_processes,
             list_configs,
             list_examples,
             import_example_config,

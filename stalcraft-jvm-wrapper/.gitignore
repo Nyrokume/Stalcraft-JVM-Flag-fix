@@ -20,6 +20,8 @@ src-tauri/gen/
 
 release/
 wrapper.zip
+installer/output/
+SHA256SUMS.txt
 *.log
 npm-debug.log*
 .env

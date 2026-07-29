@@ -10,6 +10,8 @@ use std::os::windows::ffi::OsStrExt;
 use std::path::Path;
 use std::ptr;
 
+use serde::Serialize;
+
 use crate::paths;
 
 // ─── NT / Win32 API ───────────────────────────────────────────────────────────
@@ -58,6 +60,16 @@ extern "system" {
     fn GetExitCodeProcess(hProcess: isize, lpExitCode: *mut u32) -> i32;
     fn SetProcessPriorityBoost(hProcess: isize, DisablePriorityBoost: i32) -> i32;
     fn ResumeThread(hThread: isize) -> u32;
+    fn CreateToolhelp32Snapshot(dwFlags: u32, th32ProcessID: u32) -> isize;
+    fn Process32FirstW(hSnapshot: isize, lppe: *mut PROCESSENTRY32W) -> i32;
+    fn Process32NextW(hSnapshot: isize, lppe: *mut PROCESSENTRY32W) -> i32;
+    fn OpenProcess(dwDesiredAccess: u32, bInheritHandle: i32, dwProcessId: u32) -> isize;
+    fn QueryFullProcessImageNameW(
+        hProcess: isize,
+        dwFlags: u32,
+        lpExeName: *mut u16,
+        lpdwSize: *mut u32,
+    ) -> i32;
 }
 
 #[link(name = "user32")]
@@ -156,6 +168,20 @@ struct MSG {
     pt: POINT,
 }
 
+#[repr(C)]
+struct PROCESSENTRY32W {
+    dwSize: u32,
+    cntUsage: u32,
+    th32ProcessID: u32,
+    th32DefaultHeapID: usize,
+    th32ModuleID: u32,
+    cntThreads: u32,
+    th32ParentProcessID: u32,
+    pcPriClassBase: i32,
+    dwFlags: u32,
+    szExeFile: [u16; 260],
+}
+
 // ─── Константы ────────────────────────────────────────────────────────────────
 
 const PS_ATTRIBUTE_IMAGE_NAME: usize = 0x00020005;
@@ -175,6 +201,10 @@ const WS_POPUP: u32 = 0x80000000;
 const WS_EX_TOOLWINDOW: u32 = 0x00000080;
 const WS_EX_LAYERED: u32 = 0x00080000;
 const LWA_ALPHA: u32 = 0x02;
+
+const TH32CS_SNAPPROCESS: u32 = 0x00000002;
+const PROCESS_QUERY_LIMITED_INFORMATION: u32 = 0x1000;
+const INVALID_HANDLE_VALUE: isize = -1;
 
 // ─── Утилиты ─────────────────────────────────────────────────────────────────
 
@@ -568,5 +598,245 @@ fn has_visible_window(pid: u32) -> bool {
         FOUND_VISIBLE = 0;
         EnumWindows(Some(enum_windows_proc), pid as isize);
         FOUND_VISIBLE != 0
+    }
+}
+
+// ─── Reverse discovery: find running STALZONE / STALCRAFT client ─────────────
+
+#[derive(Debug, Clone, Serialize)]
+pub struct GameProcessMatch {
+    pub pid: u32,
+    pub name: String,
+    pub path: String,
+    pub kind: String,
+    pub launcher: String,
+    pub has_window: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct GameProcessSearchResult {
+    /// True only when at least one live game client process was found.
+    pub running: bool,
+    pub primary: Option<GameProcessMatch>,
+    pub processes: Vec<GameProcessMatch>,
+}
+
+fn pe32_exe_name(pe: &PROCESSENTRY32W) -> String {
+    let len = pe
+        .szExeFile
+        .iter()
+        .position(|&c| c == 0)
+        .unwrap_or(pe.szExeFile.len());
+    String::from_utf16_lossy(&pe.szExeFile[..len])
+}
+
+fn is_candidate_exe_name(name: &str) -> bool {
+    let n = name.to_lowercase();
+    matches!(
+        n.as_str(),
+        "stalzone.exe"
+            | "stalzonew.exe"
+            | "stalcraft.exe"
+            | "stalcraftw.exe"
+            | "java.exe"
+            | "javaw.exe"
+    )
+}
+
+fn query_process_image_path(pid: u32) -> Option<String> {
+    unsafe {
+        let handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid);
+        if handle == 0 {
+            return None;
+        }
+        let mut buf = [0u16; 1024];
+        let mut size = buf.len() as u32;
+        let ok = QueryFullProcessImageNameW(handle, 0, buf.as_mut_ptr(), &mut size);
+        CloseHandle(handle);
+        if ok == 0 || size == 0 {
+            return None;
+        }
+        Some(String::from_utf16_lossy(&buf[..size as usize]))
+    }
+}
+
+fn match_score(m: &GameProcessMatch) -> i32 {
+    let mut score = 0;
+    let name = m.name.to_lowercase();
+    if name.starts_with("stalzone") {
+        score += 100;
+    } else if name.starts_with("stalcraft") {
+        score += 80;
+    } else if name == "javaw.exe" {
+        score += 40;
+    } else if name == "java.exe" {
+        score += 30;
+    }
+    match m.launcher.as_str() {
+        "steam" | "exbo" => score += 20,
+        "egs" | "vkplay" => score += 15,
+        _ => {}
+    }
+    if m.has_window {
+        score += 10;
+    }
+    if m.kind == "launcher" {
+        score += 5;
+    }
+    score
+}
+
+/// Rank matches: prefer stalzone* (Steam + EXBO), then stalcraft*, then game javaw.
+pub fn rank_matches(matches: &[GameProcessMatch]) -> Option<GameProcessMatch> {
+    matches
+        .iter()
+        .max_by_key(|m| match_score(m))
+        .cloned()
+}
+
+fn classify_match(pid: u32, path: &str) -> Option<GameProcessMatch> {
+    let name = Path::new(path)
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or("")
+        .to_string();
+    let lower = name.to_lowercase();
+
+    let kind = if paths::is_launcher_binary(path) {
+        "launcher"
+    } else if paths::is_game_java(path) {
+        "java"
+    } else {
+        return None;
+    };
+
+    // Drop system java even if name matched snapshot filter.
+    if (lower == "java.exe" || lower == "javaw.exe") && kind != "java" {
+        return None;
+    }
+
+    let launcher = paths::classify_target(path).kind.as_str().to_string();
+    Some(GameProcessMatch {
+        pid,
+        name,
+        path: path.to_string(),
+        kind: kind.to_string(),
+        launcher,
+        has_window: has_visible_window(pid),
+    })
+}
+
+/// Enumerate running STALZONE / STALCRAFT clients (incl. Steam `stalzone.exe`).
+/// Returns `running: false` and empty lists when the game is not on — never invents PIDs.
+pub fn find_game_processes() -> GameProcessSearchResult {
+    let mut processes = Vec::new();
+
+    unsafe {
+        let snap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+        if snap == INVALID_HANDLE_VALUE || snap == 0 {
+            return GameProcessSearchResult {
+                running: false,
+                primary: None,
+                processes,
+            };
+        }
+
+        let mut pe: PROCESSENTRY32W = std::mem::zeroed();
+        pe.dwSize = std::mem::size_of::<PROCESSENTRY32W>() as u32;
+
+        if Process32FirstW(snap, &mut pe) != 0 {
+            loop {
+                let exe_name = pe32_exe_name(&pe);
+                if is_candidate_exe_name(&exe_name) {
+                    let pid = pe.th32ProcessID;
+                    if pid != 0 {
+                        if let Some(path) = query_process_image_path(pid) {
+                            if let Some(m) = classify_match(pid, &path) {
+                                processes.push(m);
+                            }
+                        }
+                    }
+                }
+                if Process32NextW(snap, &mut pe) == 0 {
+                    break;
+                }
+            }
+        }
+        CloseHandle(snap);
+    }
+
+    processes.sort_by_key(|m| std::cmp::Reverse(match_score(m)));
+    let primary = rank_matches(&processes);
+    let running = !processes.is_empty();
+    GameProcessSearchResult {
+        running,
+        primary,
+        processes,
+    }
+}
+
+#[cfg(test)]
+mod discover_tests {
+    use super::*;
+
+    fn sample(name: &str, path: &str, launcher: &str, kind: &str, pid: u32) -> GameProcessMatch {
+        GameProcessMatch {
+            pid,
+            name: name.to_string(),
+            path: path.to_string(),
+            kind: kind.to_string(),
+            launcher: launcher.to_string(),
+            has_window: false,
+        }
+    }
+
+    #[test]
+    fn rank_prefers_steam_stalzone_over_legacy() {
+        let matches = vec![
+            sample(
+                "stalcraftw.exe",
+                r"D:\Steam\steamapps\common\stalcraft\stalcraftw.exe",
+                "steam",
+                "launcher",
+                111,
+            ),
+            sample(
+                "stalzone.exe",
+                r"D:\Steam\steamapps\common\stalcraft\stalzone.exe",
+                "steam",
+                "launcher",
+                222,
+            ),
+        ];
+        let primary = rank_matches(&matches).expect("primary");
+        assert_eq!(primary.pid, 222);
+        assert_eq!(primary.name, "stalzone.exe");
+    }
+
+    #[test]
+    fn rank_prefers_stalzone_over_javaw() {
+        let matches = vec![
+            sample(
+                "javaw.exe",
+                r"C:\Users\me\AppData\Roaming\EXBO\runtime\stalcraft\win64\java\bin\javaw.exe",
+                "exbo",
+                "java",
+                10,
+            ),
+            sample(
+                "stalzone.exe",
+                r"C:\Users\me\AppData\Roaming\EXBO\runtime\stalcraft\win64\java\bin\stalzone.exe",
+                "exbo",
+                "launcher",
+                20,
+            ),
+        ];
+        let primary = rank_matches(&matches).expect("primary");
+        assert_eq!(primary.pid, 20);
+    }
+
+    #[test]
+    fn empty_rank_is_none() {
+        assert!(rank_matches(&[]).is_none());
     }
 }

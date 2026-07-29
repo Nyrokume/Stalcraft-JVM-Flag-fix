@@ -28,7 +28,15 @@ import {
 
 const SETTINGS_KEY = 'stalcraft-sb-settings';
 const SETTINGS_VERSION = 5;
+const CATALOG_CACHE_KEY = 'stalcraft-sb-catalog-v1';
 const RU_CATALOG_URL = 'https://backend.stalcraftx.ru/address_list?login=User';
+const ROXY_BASE =
+    'https://raw.githubusercontent.com/Art3mLapa/unofficial-stalzone-api/main/static/address_list';
+const ROXY_REGION_URLS = {
+    EU: `${ROXY_BASE}/EU.json`,
+    NA: `${ROXY_BASE}/NA.json`,
+    SEA: `${ROXY_BASE}/SEA.json`,
+};
 
 const DEFAULT_SETTINGS = {
     v: SETTINGS_VERSION,
@@ -46,26 +54,131 @@ export function mergeServerCatalogs(roxy = serverCatalog, ru = ruCatalogBundled)
     const roxyPools = (roxy?.pools ?? []).filter((p) => p.name !== 'MSK2X');
     const ruPools = (ru?.pools ?? []).map((p) => ({ ...p, region: 'RU' }));
     return {
-        ...roxy,
+        mode: roxy?.mode || ru?.mode || 'roxy',
         pools: [...roxyPools, ...ruPools],
+        clientToTunnelRttWeight: roxy?.clientToTunnelRttWeight ?? ru?.clientToTunnelRttWeight ?? 1,
     };
+}
+
+async function fetchJsonCatalog(url, label) {
+    const res = await fetch(url, {
+        headers: { Accept: 'application/json' },
+        signal: AbortSignal.timeout(12_000),
+    });
+    if (!res.ok) throw new Error(`${label} HTTP ${res.status}`);
+    const data = await res.json();
+    if (!Array.isArray(data?.pools) || data.pools.length === 0) {
+        throw new Error(`${label} empty pools`);
+    }
+    return data;
+}
+
+function stampRegion(pools, region) {
+    return (pools ?? []).map((p) => ({
+        name: p.name,
+        region,
+        tunnels: (p.tunnels ?? []).map((t) => ({
+            name: t.name,
+            address: String(t.address ?? ''),
+        })),
+    }));
+}
+
+export function loadCatalogCache() {
+    try {
+        const raw = localStorage.getItem(CATALOG_CACHE_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed?.roxy?.pools) || !Array.isArray(parsed?.ru?.pools)) return null;
+        if (!parsed.roxy.pools.length || !parsed.ru.pools.length) return null;
+        return parsed;
+    } catch {
+        return null;
+    }
+}
+
+export function saveCatalogCache(roxy, ru) {
+    try {
+        localStorage.setItem(
+            CATALOG_CACHE_KEY,
+            JSON.stringify({
+                v: 1,
+                savedAt: Date.now(),
+                roxy,
+                ru,
+            }),
+        );
+    } catch (err) {
+        console.warn('catalog cache write failed:', err);
+    }
 }
 
 export async function fetchRuCatalog() {
     try {
-        const res = await fetch(RU_CATALOG_URL, {
-            headers: { Accept: 'application/json' },
-            signal: AbortSignal.timeout(12_000),
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        if (Array.isArray(data?.pools) && data.pools.length > 0) {
-            return data;
-        }
+        return await fetchJsonCatalog(RU_CATALOG_URL, 'RU');
     } catch (err) {
         console.warn('RU catalog fetch failed, using bundled list:', err);
     }
     return ruCatalogBundled;
+}
+
+/**
+ * Pull RU + EU/NA/SEA from live endpoints.
+ * Falls back per-region to bundled / previous values on failure.
+ */
+export async function fetchAllCatalogs({
+    fallbackRoxy = serverCatalog,
+    fallbackRu = ruCatalogBundled,
+} = {}) {
+    const sources = { ru: 'bundled', eu: 'bundled', na: 'bundled', sea: 'bundled' };
+
+    const ruPromise = fetchJsonCatalog(RU_CATALOG_URL, 'RU')
+        .then((data) => {
+            sources.ru = 'live';
+            return {
+                mode: data.mode || 'roxy',
+                source: RU_CATALOG_URL,
+                pools: (data.pools ?? []).map((p) => ({
+                    name: p.name,
+                    tunnels: (p.tunnels ?? []).map((t) => ({
+                        name: t.name,
+                        address: String(t.address ?? ''),
+                    })),
+                })),
+                clientToTunnelRttWeight: data.clientToTunnelRttWeight ?? 1,
+            };
+        })
+        .catch((err) => {
+            console.warn('RU catalog fetch failed:', err);
+            return fallbackRu;
+        });
+
+    const regionPromises = Object.entries(ROXY_REGION_URLS).map(async ([region, url]) => {
+        try {
+            const data = await fetchJsonCatalog(url, region);
+            sources[region.toLowerCase()] = 'live';
+            return stampRegion(data.pools, region);
+        } catch (err) {
+            console.warn(`${region} catalog fetch failed:`, err);
+            const kept = (fallbackRoxy?.pools ?? []).filter((p) => p.region === region);
+            return stampRegion(kept, region);
+        }
+    });
+
+    const [ru, ...regionPools] = await Promise.all([ruPromise, ...regionPromises]);
+    const roxy = {
+        mode: 'roxy',
+        source: `${ROXY_BASE}/{EU,NA,SEA}.json`,
+        pools: regionPools.flat(),
+        clientToTunnelRttWeight: 1,
+    };
+
+    const liveCount = Object.values(sources).filter((s) => s === 'live').length;
+    if (liveCount > 0) {
+        saveCatalogCache(roxy, ru);
+    }
+
+    return { roxy, ru, sources, liveCount };
 }
 
 function resolveFilterRegion(_poolName, catalogRegion) {
@@ -173,10 +286,15 @@ function regionLabel(region, t) {
 }
 
 export async function initServerBlocker({ t, invoke = null }) {
-    const ruData = await fetchRuCatalog();
-    const catalog = mergeServerCatalogs(serverCatalog, ruData);
-    const ruPoolOrder = (ruData?.pools ?? []).map((p) => p.name);
-    let servers = flattenServerCatalog(catalog);
+    const cached = loadCatalogCache();
+    const initial = await fetchAllCatalogs({
+        fallbackRoxy: cached?.roxy ?? serverCatalog,
+        fallbackRu: cached?.ru ?? ruCatalogBundled,
+    });
+    let liveRoxy = initial.roxy;
+    let liveRu = initial.ru;
+    let ruPoolOrder = (liveRu?.pools ?? []).map((p) => p.name);
+    let servers = flattenServerCatalog(mergeServerCatalogs(liveRoxy, liveRu));
     let settings = pruneSelectionToCatalog(servers, loadSettings());
     saveSettings(settings);
     let pinging = false;
@@ -479,7 +597,7 @@ export async function initServerBlocker({ t, invoke = null }) {
         const max = Math.max(...points, 120);
         const min = Math.min(...points, 20);
         const span = Math.max(max - min, 1);
-        const stroke = blockingBusy && !pinging ? '#ef4444' : '#f472b6';
+        const stroke = blockingBusy && !pinging ? '#c45c4a' : '#c96442';
 
         ctx.strokeStyle = stroke;
         ctx.lineWidth = 1.5;
@@ -493,7 +611,7 @@ export async function initServerBlocker({ t, invoke = null }) {
         });
         ctx.stroke();
 
-        ctx.fillStyle = blockingBusy && !pinging ? 'rgba(239,68,68,0.12)' : 'rgba(244,114,182,0.12)';
+        ctx.fillStyle = blockingBusy && !pinging ? 'rgba(181,74,58,0.12)' : 'rgba(201,100,66,0.12)';
         ctx.lineTo(w - 4, h);
         ctx.lineTo(4, h);
         ctx.closePath();
@@ -609,11 +727,16 @@ export async function initServerBlocker({ t, invoke = null }) {
                 <code class="sb-card-addr">${escapeHtml(srv.address)}</code>
                 <div class="sb-card-foot">
                     <span class="sb-card-access${denied ? ' is-blocked' : ''}">${t(accessKey)}</span>
-                    <label class="sb-switch" title="${escapeHtml(t('sbToggleHint'))}">
-                        <input type="checkbox" class="sb-switch-input" data-block-toggle="${escapeHtml(srv.id)}"
-                            ${isSelected(srv.id) ? 'checked' : ''}>
-                        <span class="sb-switch-track"><span class="sb-switch-thumb"></span></span>
-                    </label>
+                    <div class="sb-card-power">
+                        <span class="sb-power-label">${escapeHtml(t('sbPower'))}</span>
+                        <span class="sb-switch-off">OFF</span>
+                        <label class="sb-switch" title="${escapeHtml(t('sbToggleHint'))}">
+                            <input type="checkbox" class="sb-switch-input" data-block-toggle="${escapeHtml(srv.id)}"
+                                ${isSelected(srv.id) ? 'checked' : ''}>
+                            <span class="sb-switch-track"><span class="sb-switch-thumb"></span></span>
+                        </label>
+                        <span class="sb-switch-on">ON</span>
+                    </div>
                 </div>
             </article>`;
     }
@@ -707,6 +830,10 @@ export async function initServerBlocker({ t, invoke = null }) {
 
     els.resetBtn?.addEventListener('click', async () => {
         if (blockingBusy || pinging) return;
+        const ok = typeof window.__confirmAction === 'function'
+            ? await window.__confirmAction(t('confirmSbReset'))
+            : window.confirm(t('confirmSbReset'));
+        if (!ok) return;
         settings = structuredClone(DEFAULT_SETTINGS);
         saveSettings(settings);
         if (els.search) els.search.value = '';
@@ -720,9 +847,11 @@ export async function initServerBlocker({ t, invoke = null }) {
                 blockingActive = false;
                 appliedHosts = [];
                 statusMessage = t('sbResetCleared');
+                window.__showToast?.(t('toastSbReset'), 'success');
             } catch (err) {
                 console.error('reset stop_server_blocking failed:', err);
                 statusMessage = t('sbBlockFailed', { err: String(err) });
+                window.__showToast?.(t('toastActionFailed'), 'error');
             } finally {
                 blockingBusy = false;
                 await syncBlockingStatus();
@@ -730,6 +859,7 @@ export async function initServerBlocker({ t, invoke = null }) {
         } else {
             appliedHosts = [];
             statusMessage = t('sbResetClearedLocal');
+            window.__showToast?.(t('toastSbReset'), 'success');
         }
         render();
     });
@@ -798,10 +928,12 @@ export async function initServerBlocker({ t, invoke = null }) {
             const msg = await invoke('start_server_blocking', { ips });
             appliedHosts = [...ips];
             statusMessage = t('sbBlockSuccess');
+            window.__showToast?.(t('toastSbApplied'), 'success');
             console.info(msg);
         } catch (err) {
             console.error('start_server_blocking failed:', err);
             statusMessage = t('sbBlockFailed', { err: String(err) });
+            window.__showToast?.(t('toastActionFailed'), 'error');
         } finally {
             blockingBusy = false;
             await syncBlockingStatus();
@@ -820,10 +952,12 @@ export async function initServerBlocker({ t, invoke = null }) {
             const msg = await invoke('stop_server_blocking');
             appliedHosts = [];
             statusMessage = t('sbBlockStopped');
+            window.__showToast?.(t('toastSbStopped'), 'success');
             console.info(msg);
         } catch (err) {
             console.error('stop_server_blocking failed:', err);
             statusMessage = t('sbBlockFailed', { err: String(err) });
+            window.__showToast?.(t('toastActionFailed'), 'error');
         } finally {
             blockingBusy = false;
             await syncBlockingStatus();
@@ -835,42 +969,58 @@ export async function initServerBlocker({ t, invoke = null }) {
     els.refreshBtn?.addEventListener('click', async () => {
         if (blockingBusy || pinging) return;
         if (els.refreshBtn) els.refreshBtn.disabled = true;
-        const fresh = await fetchRuCatalog();
-        servers = flattenServerCatalog(mergeServerCatalogs(serverCatalog, fresh));
-        settings = pruneSelectionToCatalog(servers, settings);
-        saveSettings(settings);
-        const hosts = blockedHostsForFirewall();
-        if (blockingActive && invoke) {
-            if (!hosts.length) {
-                blockingBusy = true;
-                try {
-                    await invoke('stop_server_blocking');
-                    appliedHosts = [];
-                    statusMessage = t('sbRefreshStoppedEmpty');
-                } catch (err) {
-                    statusMessage = t('sbBlockFailed', { err: String(err) });
-                } finally {
-                    blockingBusy = false;
-                    await syncBlockingStatus();
-                }
-            } else if (!hostSetsEqual(hosts, appliedHosts)) {
-                blockingBusy = true;
-                try {
-                    await invoke('start_server_blocking', { ips: hosts });
-                    appliedHosts = [...hosts];
-                    statusMessage = t('sbRefreshReapplied');
-                } catch (err) {
-                    statusMessage = t('sbBlockFailed', { err: String(err) });
-                } finally {
-                    blockingBusy = false;
-                    await syncBlockingStatus();
-                    if (blockingActive) appliedHosts = [...hosts];
+        statusMessage = t('sbRefreshBusy');
+        renderStatus();
+        try {
+            const fresh = await fetchAllCatalogs({
+                fallbackRoxy: liveRoxy,
+                fallbackRu: liveRu,
+            });
+            liveRoxy = fresh.roxy;
+            liveRu = fresh.ru;
+            ruPoolOrder = (liveRu?.pools ?? []).map((p) => p.name);
+            servers = flattenServerCatalog(mergeServerCatalogs(liveRoxy, liveRu));
+            settings = pruneSelectionToCatalog(servers, settings);
+            saveSettings(settings);
+            const hosts = blockedHostsForFirewall();
+            const liveHint = fresh.liveCount > 0
+                ? t('sbRefreshLive', { n: fresh.liveCount })
+                : t('sbRefreshFallback');
+            if (blockingActive && invoke) {
+                if (!hosts.length) {
+                    blockingBusy = true;
+                    try {
+                        await invoke('stop_server_blocking');
+                        appliedHosts = [];
+                        statusMessage = `${liveHint} · ${t('sbRefreshStoppedEmpty')}`;
+                    } catch (err) {
+                        statusMessage = t('sbBlockFailed', { err: String(err) });
+                    } finally {
+                        blockingBusy = false;
+                        await syncBlockingStatus();
+                    }
+                } else if (!hostSetsEqual(hosts, appliedHosts)) {
+                    blockingBusy = true;
+                    try {
+                        await invoke('start_server_blocking', { ips: hosts });
+                        appliedHosts = [...hosts];
+                        statusMessage = `${liveHint} · ${t('sbRefreshReapplied')}`;
+                    } catch (err) {
+                        statusMessage = t('sbBlockFailed', { err: String(err) });
+                    } finally {
+                        blockingBusy = false;
+                        await syncBlockingStatus();
+                        if (blockingActive) appliedHosts = [...hosts];
+                    }
+                } else {
+                    statusMessage = `${liveHint} · ${t('sbRefreshDone')}`;
                 }
             } else {
-                statusMessage = t('sbRefreshDone');
+                statusMessage = `${liveHint} · ${t('sbRefreshDone')}`;
             }
-        } else {
-            statusMessage = t('sbRefreshDone');
+        } catch (err) {
+            console.error('catalog refresh failed:', err);
+            statusMessage = t('sbRefreshFailed', { err: String(err) });
         }
         render();
         if (els.refreshBtn) els.refreshBtn.disabled = false;

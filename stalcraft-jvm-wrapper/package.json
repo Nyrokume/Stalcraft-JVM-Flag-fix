@@ -1,6 +1,6 @@
 {
   "name": "stalcraft-jvm-wrapper",
-  "version": "1.6.5",
+  "version": "1.7.0",
   "description": "STALZONE JVM Wrapper — Tauri desktop IFEO JVM tuning",
   "scripts": {
     "dev": "powershell -ExecutionPolicy Bypass -File scripts/dev.ps1",
@@ -10,6 +10,7 @@
     "build": "vite build",
     "tauri": "tauri",
     "build:prod": "powershell -ExecutionPolicy Bypass -File scripts/package.ps1",
+    "build:installer": "powershell -ExecutionPolicy Bypass -File scripts/build-installer.ps1",
     "screenshots": "npm run build && node scripts/capture-screenshots.mjs",
     "test:ui": "vite build --mode test && node scripts/ui-smoke.mjs",
     "test:sb": "node scripts/server-blocker.test.mjs",

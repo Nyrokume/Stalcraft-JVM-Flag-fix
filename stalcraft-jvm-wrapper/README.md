@@ -2,7 +2,7 @@
 
 Tauri/Rust port of [EXBO-Community/stalcraft-jvm-optimization](https://github.com/EXBO-Community/stalcraft-jvm-optimization) for **STALZONE** (EXBO, Steam, EGS, VK Play).
 
-**Latest release:** [v1.6.0](https://github.com/Nyrokume/Stalcraft-JVM-Flag-fix/releases/latest) · `wrapper.zip`
+**Latest release:** [v1.7.0](https://github.com/Nyrokume/Stalcraft-JVM-Flag-Fix/releases/latest) · `wrapper.zip` · Setup.exe
 
 ## Screenshots
 
@@ -42,7 +42,8 @@ Registry: native 64-bit + WOW6432Node.
 
 1. Add your launcher folder to antivirus exclusions (EXBO: `%AppData%\Roaming\EXBO`).
 2. Download **`wrapper.zip`** from [Releases](https://github.com/Nyrokume/Stalcraft-JVM-Flag-fix/releases) (recommended) or build locally: `npm run build:prod`.
-3. Extract to your platform `jvm_wrapper\` folder (both `.exe` files side by side). The in-app launch guide has per-platform paths.
+3. Extract `wrapper.zip` anywhere (Desktop, Downloads, or platform `jvm_wrapper\`) — keep **both** `.exe` files in the **same folder**. Configs/logs/examples live next to the exe. After moving the folder, run **INSTALL** again so IFEO points at the new `service.exe`.
+4. The in-app launch guide has per-platform paths (EXBO / Steam / EGS / VK).
 4. Launch GUI:
    - **Step 1:** accept license agreement
    - **Step 2:** authors & contacts screen → **Got it**
@@ -107,9 +108,10 @@ Import presets from the **CONFIGURATION** panel (chips) or copy JSON to `configs
 npm install
 npm test          # JS + Rust + UI smoke
 npm run build:prod
+npm run build:installer
 ```
 
-Creates `wrapper.zip` with `stalcraft-jvm-wrapper.exe`, `service.exe`, `examples/`.
+Creates `wrapper.zip`, `STALZONE-JVM-Wrapper-Setup-*.exe`, and `SHA256SUMS.txt`. Portable: unpack anywhere; keep both `.exe` beside `examples/`.
 
 ```powershell
 npm run screenshots   # optional: refresh docs/screenshots/
@@ -137,3 +139,4 @@ stalcraft-jvm-wrapper.exe --sb-clear         # remove rules (admin)
 See [README_RU.md](./README_RU.md) for Russian.
 
 **License:** free, non-commercial. Install only from trusted sources.
+

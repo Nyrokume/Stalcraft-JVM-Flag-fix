@@ -6,13 +6,11 @@
     <title>STALZONE JVM Wrapper</title>
     <link rel="stylesheet" href="./assets/styles.css">
     <link rel="stylesheet" href="./assets/server-blocker.css">
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
     <script type="module" src="./main.js"></script>
 </head>
-<body>
-    <!-- Loading Screen -->
+<body class="theme-claude">
     <div class="loading-screen" id="loading-screen">
-        <!-- Loading Screen Title Bar -->
         <div class="loading-titlebar" data-tauri-drag-region>
             <div class="titlebar-left">
                 <svg class="titlebar-logo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -28,36 +26,17 @@
                     <button type="button" class="lang-btn" data-lang="en" data-i18n="langEn">EN</button>
                 </div>
                 <button class="titlebar-btn titlebar-minimize" id="btn-minimize-loading" data-i18n-title="minimize" title="Minimize">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="5" y1="12" x2="19" y2="12"/>
-                    </svg>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/></svg>
                 </button>
                 <button class="titlebar-btn titlebar-maximize" id="btn-maximize-loading" data-i18n-title="maximize" title="Maximize">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="5" y="5" width="14" height="14" rx="1"/>
-                    </svg>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="5" width="14" height="14" rx="1"/></svg>
                 </button>
                 <button class="titlebar-btn titlebar-close" id="btn-close-loading" data-i18n-title="close" title="Close">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="6" y1="6" x2="18" y2="18"/>
-                        <line x1="18" y1="6" x2="6" y2="18"/>
-                    </svg>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
                 </button>
             </div>
         </div>
-        
-        <div class="loading-content">
-            <div class="loading-logo">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M12 2L2 7l10 5 10-5-10-5z"/>
-                    <path d="M2 17l10 5 10-5"/>
-                    <path d="M2 12l10 5 10-5"/>
-                </svg>
-            </div>
-            <div class="loading-title">
-                <h1>STALZONE <span class="accent">JVM</span> WRAPPER</h1>
-                <p class="loading-subtitle">Initializing...</p>
-            </div>
+        <div class="loading-content loading-content--compact">
             <div class="loading-bar-container">
                 <div class="loading-bar">
                     <div class="loading-bar-fill" id="loading-progress"></div>
@@ -67,7 +46,6 @@
         </div>
     </div>
 
-    <!-- Custom Title Bar -->
     <div class="custom-titlebar" data-tauri-drag-region>
         <div class="titlebar-left">
             <svg class="titlebar-logo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -75,7 +53,7 @@
                 <path d="M2 17l10 5 10-5"/>
                 <path d="M2 12l10 5 10-5"/>
             </svg>
-                <span class="titlebar-title" data-i18n="appTitle">STALZONE JVM Wrapper</span>
+            <span class="titlebar-title" data-i18n="appTitle">STALZONE JVM Wrapper</span>
         </div>
         <div class="titlebar-controls">
             <div class="titlebar-lang">
@@ -83,224 +61,197 @@
                 <button type="button" class="lang-btn" data-lang="en" data-i18n="langEn">EN</button>
             </div>
             <button class="titlebar-btn titlebar-minimize" id="btn-minimize" data-i18n-title="minimize" title="Minimize">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <line x1="5" y1="12" x2="19" y2="12"/>
-                </svg>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/></svg>
             </button>
             <button class="titlebar-btn titlebar-maximize" id="btn-maximize" data-i18n-title="maximize" title="Maximize">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <rect x="5" y="5" width="14" height="14" rx="1"/>
-                </svg>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="5" width="14" height="14" rx="1"/></svg>
             </button>
             <button class="titlebar-btn titlebar-close" id="btn-close" data-i18n-title="close" title="Close">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <line x1="6" y1="6" x2="18" y2="18"/>
-                    <line x1="18" y1="6" x2="6" y2="18"/>
-                </svg>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
             </button>
         </div>
     </div>
-    
-    <div class="app-wrapper">
-        <!-- Header -->
-        <header class="app-header">
-            <div class="header-left">
-                <div class="logo-container">
-                    <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M12 2L2 7l10 5 10-5-10-5z"/>
-                        <path d="M2 17l10 5 10-5"/>
-                        <path d="M2 12l10 5 10-5"/>
-                    </svg>
-                </div>
-                <div class="title-block">
-                    <h1>STALZONE <span class="accent">JVM</span> WRAPPER</h1>
-                    <p class="subtitle" data-i18n="subtitle">Dynamic JVM optimization for STALZONE on Windows</p>
-                </div>
-            </div>
-            <div class="header-right">
-                <div class="system-status">
-                    <svg class="status-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-                    </svg>
-                    <span class="status-text" data-i18n="statusOnline">SYSTEM ONLINE</span>
-                </div>
-                <div class="timestamp" id="current-time">2026-04-05 // 00:32:01</div>
-            </div>
-        </header>
 
+    <div class="app-wrapper app-wrapper--pages">
         <nav class="app-nav" aria-label="Main navigation">
-            <button type="button" class="app-nav-btn active" data-page="jvm" id="nav-jvm">
-                <svg class="app-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
-                </svg>
-                <span data-i18n="navJvm">JVM Optimization</span>
+            <button type="button" class="app-nav-btn active" data-page="overview" id="nav-overview">
+                <span data-i18n="navOverview">Overview</span>
             </button>
-            <button type="button" class="app-nav-btn" data-page="server-blocker" id="nav-server-blocker">
-                <svg class="app-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                </svg>
-                <span data-i18n="navServerBlocker">Server Blocker</span>
+            <button type="button" class="app-nav-btn" data-page="config" id="nav-config">
+                <span data-i18n="navConfig">Config</span>
+            </button>
+            <button type="button" class="app-nav-btn" data-page="hardware" id="nav-hardware">
+                <span data-i18n="navHardware">Hardware</span>
+            </button>
+            <button type="button" class="app-nav-btn" data-page="ifeo" id="nav-ifeo">
+                <span data-i18n="navIfeo">IFEO</span>
+            </button>
+            <button type="button" class="app-nav-btn" data-page="servers" id="nav-servers">
+                <span data-i18n="navServers">Servers</span>
             </button>
         </nav>
 
-        <!-- Page: JVM -->
-        <div class="app-page active" id="page-jvm">
-        <main class="main-content main-content--dense">
-            <div class="main-grid-top">
-                <div class="main-col main-col--exec">
-                <!-- Execution Protocol -->
-                <section class="panel execution-protocol">
-                    <div class="panel-header">
-                        <div class="panel-title">
-                            <svg class="panel-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
-                            </svg>
-                            <span data-i18n="execProtocol">EXECUTION PROTOCOL</span>
+        <div class="app-pages">
+            <!-- Overview -->
+            <div class="app-page active" id="page-overview">
+                <main class="page-shell">
+                    <div class="status-strip" aria-label="Status">
+                        <div class="status-chip">
+                            <span class="status-chip-label" data-i18n="ifeo">IFEO</span>
+                            <span class="status-chip-value" id="overview-ifeo">—</span>
+                        </div>
+                        <div class="status-chip">
+                            <span class="status-chip-label" data-i18n="overviewProfile">Profile</span>
+                            <span class="status-chip-value" id="overview-config">—</span>
+                        </div>
+                        <div class="status-chip">
+                            <span class="status-chip-label" data-i18n="hwHeap">Heap</span>
+                            <span class="status-chip-value accent" id="overview-heap">—</span>
                         </div>
                     </div>
-                    <div class="execution-content">
-                        <div class="launch-guide">
-                            <div class="guide-title" data-i18n="guideTitle">How to launch</div>
-                            <div class="launch-guide-platforms" id="launch-guide-platforms" role="tablist"></div>
-                            <ol class="guide-steps" id="launch-guide-steps"></ol>
-                        </div>
-                        <div class="launch-warning" id="launch-warning">
-                            <p data-i18n="launchWarning">IFEO must be ACTIVE before the game starts. Restart the launcher after install.</p>
-                        </div>
-                    </div>
-                </section>
-                </div>
 
-                <div class="main-col main-col--config">
-                <!-- Configuration Profiles -->
-                <section class="panel config-profiles">
-                    <div class="panel-header config-panel-header">
-                        <div class="panel-title">
-                            <svg class="panel-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
-                            </svg>
-                            <span data-i18n="config">CONFIGURATION</span>
-                        </div>
-                    </div>
-                    <div class="panel-divider config-panel-divider"></div>
-                    <div class="config-content">
-                        <div class="config-active-label" id="config-active-label" data-i18n="configLoading">Loading…</div>
-
-                        <div class="config-subhead" data-i18n="savedProfiles">Saved profiles</div>
-                        <div class="config-saved-row">
-                            <select id="config-select" class="config-select" title="JSON files in configs folder">
-                                <option value="">Select profile…</option>
-                            </select>
-                            <button class="action-btn config-row-btn select-config-btn" id="select-config-btn" title="Set registry active profile">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-                                <span data-i18n="apply">Apply</span>
-                            </button>
-                            <button class="action-btn config-row-btn regenerate-config-btn" id="regenerate-config-btn" title="Regen">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-                                <span data-i18n="regen">Regen</span>
-                            </button>
-                        </div>
-
-                        <div class="config-subhead" data-i18n="jvmPresets">JVM presets (EXBO)</div>
-                        <p class="config-presets-hint" data-i18n="jvmPresetsHint">Source: EXBO release history — click a chip to import and apply</p>
-                        <div class="config-preset-grid" id="config-preset-grid" role="list"></div>
-                    </div>
-                </section>
-                </div>
-
-                <div class="main-col main-col--stack">
-                <!-- Hardware Profile -->
-                <section class="panel hardware-profile">
-                    <div class="panel-header">
-                        <div class="panel-title">
-                            <svg class="panel-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <rect x="4" y="4" width="16" height="16" rx="2" ry="2"/>
-                                <rect x="9" y="9" width="6" height="6"/>
-                                <line x1="9" y1="1" x2="9" y2="4"/>
-                                <line x1="15" y1="1" x2="15" y2="4"/>
-                                <line x1="9" y1="20" x2="9" y2="23"/>
-                                <line x1="15" y1="20" x2="15" y2="23"/>
-                                <line x1="20" y1="9" x2="23" y2="9"/>
-                                <line x1="20" y1="14" x2="23" y2="14"/>
-                                <line x1="1" y1="9" x2="4" y2="9"/>
-                                <line x1="1" y1="14" x2="4" y2="14"/>
-                            </svg>
-                            <span data-i18n="hardware">HARDWARE PROFILE</span>
-                        </div>
-                        <button class="refresh-btn" id="refresh-btn" title="Refresh">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <polyline points="23 4 23 10 17 10"/>
-                                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
-                            </svg>
-                        </button>
-                    </div>
-                    <div class="panel-divider"></div>
-                    <div class="hardware-list">
-                        <div class="hardware-item">
-                            <span class="hw-label" data-i18n="hwCpu">CPU</span>
-                            <div class="hw-value" id="cpu-info">
-                                <div class="hw-main">—</div>
-                                <div class="hw-sub hw-sub-detect">…</div>
+                    <section class="panel execution-protocol">
+                        <div class="panel-header">
+                            <div class="panel-title">
+                                <span data-i18n="execProtocol">Launch</span>
                             </div>
                         </div>
-                        <div class="hardware-item">
-                            <span class="hw-label" data-i18n="hwGpu">GPU</span>
-                            <div class="hw-value" id="gpu-info">
-                                <div class="hw-main">—</div>
-                                <div class="hw-sub hw-sub-detect">…</div>
+                        <div class="execution-content">
+                            <div class="launch-guide">
+                                <div class="guide-title" data-i18n="guideTitle">How to launch</div>
+                                <div class="launch-guide-platforms" id="launch-guide-platforms" role="tablist"></div>
+                                <ol class="guide-steps" id="launch-guide-steps"></ol>
+                            </div>
+                            <div class="launch-warning" id="launch-warning">
+                                <p data-i18n="launchWarning">IFEO must be ACTIVE before the game starts. Restart the launcher after install.</p>
                             </div>
                         </div>
-                        <div class="hardware-item">
-                            <span class="hw-label" data-i18n="hwRam">RAM</span>
-                            <div class="hw-value" id="ram-info">
-                                <div class="ram-bar-container">
-                                    <div class="ram-bar">
-                                        <div class="ram-bar-fill" id="ram-fill" style="width: 0%"></div>
+                    </section>
+                </main>
+            </div>
+
+            <!-- Config -->
+            <div class="app-page hidden" id="page-config">
+                <main class="page-shell">
+                    <section class="panel config-profiles mock-block">
+                        <div class="panel-header config-panel-header">
+                            <div class="panel-title panel-title--display">
+                                <span data-i18n="config">Configuration</span>
+                            </div>
+                        </div>
+                        <div class="config-layout">
+                            <div class="config-col config-col--profiles">
+                                <div class="config-active-label" id="config-active-label" data-i18n="configLoading">Loading…</div>
+                                <div class="config-subhead" data-i18n="savedProfiles">Saved profiles</div>
+                                <div class="config-saved-row">
+                                    <select id="config-select" class="config-select" title="JSON files in configs folder">
+                                        <option value="">Select profile…</option>
+                                    </select>
+                                    <button class="action-btn config-row-btn select-config-btn" id="select-config-btn" title="Set registry active profile">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                                        <span data-i18n="apply">Apply</span>
+                                    </button>
+                                    <button class="action-btn config-row-btn regenerate-config-btn" id="regenerate-config-btn" title="Regen">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                                        <span data-i18n="regen">Regen</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="config-col config-col--presets">
+                                <div class="config-presets-panel">
+                                    <div class="config-subhead" data-i18n="jvmPresets">JVM presets</div>
+                                    <div class="config-preset-grid" id="config-preset-grid" role="list"></div>
+                                    <p class="config-preset-desc" id="config-preset-desc">Select a preset to see a short description.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                </main>
+            </div>
+
+            <!-- Hardware -->
+            <div class="app-page hidden" id="page-hardware">
+                <main class="page-shell">
+                    <section class="panel hardware-profile mock-block">
+                        <div class="panel-header">
+                            <div class="panel-title panel-title--display">
+                                <span data-i18n="hardware">Hardware</span>
+                            </div>
+                            <button class="refresh-btn" id="refresh-btn" title="Refresh">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="23 4 23 10 17 10"/>
+                                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="hw-dashboard">
+                            <div class="hw-cards-row">
+                                <article class="hw-card">
+                                    <span class="hw-card-label" data-i18n="hwCpu">CPU</span>
+                                    <div class="hw-card-body">
+                                        <div class="hw-value" id="cpu-info">
+                                            <div class="hw-main">—</div>
+                                            <div class="hw-sub hw-sub-detect">…</div>
+                                        </div>
+                                        <svg class="hw-spark" viewBox="0 0 120 36" aria-hidden="true" preserveAspectRatio="none">
+                                            <path d="M0 28 L12 22 L24 26 L36 14 L48 18 L60 10 L72 16 L84 8 L96 14 L108 6 L120 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                        </svg>
+                                    </div>
+                                </article>
+                                <article class="hw-card">
+                                    <span class="hw-card-label" data-i18n="hwGpu">GPU</span>
+                                    <div class="hw-card-body">
+                                        <div class="hw-value" id="gpu-info">
+                                            <div class="hw-main">—</div>
+                                            <div class="hw-sub hw-sub-detect">…</div>
+                                        </div>
+                                        <svg class="hw-spark hw-spark--gpu" viewBox="0 0 120 36" aria-hidden="true" preserveAspectRatio="none">
+                                            <path d="M0 20 L15 18 L30 24 L45 12 L60 16 L75 8 L90 14 L105 10 L120 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                        </svg>
+                                    </div>
+                                </article>
+                            </div>
+                            <div class="hw-ram-row">
+                                <div class="hw-ram-main hw-card">
+                                    <span class="hw-card-label" data-i18n="hwRam">RAM</span>
+                                    <div class="hw-value" id="ram-info">
+                                        <div class="ram-bar-container">
+                                            <div class="ram-bar">
+                                                <div class="ram-bar-fill" id="ram-fill" style="width: 0%"></div>
+                                            </div>
+                                        </div>
+                                        <div class="ram-text">
+                                            <span id="ram-total">—</span>
+                                            <span class="ram-available" id="ram-available">—</span>
+                                        </div>
                                     </div>
                                 </div>
-                                <div class="ram-text">
-                                    <span id="ram-total">—</span>
-                                    <span class="ram-available" id="ram-available">—</span>
+                                <div class="hw-ram-meta">
+                                    <div class="hw-meta-item">
+                                        <span class="hw-meta-label" data-i18n="hwMemory">Memory</span>
+                                        <div class="hw-value" id="mem-info">
+                                            <div class="hw-main" id="mem-tier">—</div>
+                                            <div class="hw-sub hw-sub-detect" id="mem-speed">…</div>
+                                        </div>
+                                    </div>
+                                    <div class="hw-meta-item">
+                                        <span class="hw-meta-label" data-i18n="hwHeap">Heap</span>
+                                        <div class="hw-value" id="heap-info">
+                                            <div class="hw-main accent" id="heap-size">—</div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                        <div class="hardware-item">
-                            <span class="hw-label" data-i18n="hwMemory">MEMORY</span>
-                            <div class="hw-value" id="mem-info">
-                                <div class="hw-main" id="mem-tier">—</div>
-                                <div class="hw-sub hw-sub-detect" id="mem-speed">…</div>
-                            </div>
-                        </div>
-                        <div class="hardware-item">
-                            <span class="hw-label" data-i18n="hwHeap">TARGET HEAP</span>
-                            <div class="hw-value" id="heap-info">
-                                <div class="hw-main accent" id="heap-size">—</div>
-                            </div>
-                        </div>
-                    </div>
-                </section>
+                    </section>
+                </main>
+            </div>
 
-                <!-- IFEO Registry -->
-                <section class="panel ifeo-registry">
-                    <div class="panel-header">
-                        <div class="panel-title">
-                            <svg class="panel-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <ellipse cx="12" cy="5" rx="9" ry="3"/>
-                                <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
-                                <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
-                            </svg>
-                            <span data-i18n="ifeo">IFEO REGISTRY</span>
-                        </div>
-                        <div class="status-badge" id="ifeo-status">
-                            <span class="status-dot inactive"></span>
-                            <span id="ifeo-status-text" data-i18n="ifeoInactive">INACTIVE</span>
-                        </div>
-                    </div>
-                    <div class="panel-divider"></div>
-                    <div class="ifeo-content">
-                        <p class="ifeo-description" data-i18n="ifeoDesc">Hooks via service.exe</p>
-                        <div class="ifeo-buttons">
+            <!-- IFEO -->
+            <div class="app-page hidden" id="page-ifeo">
+                <main class="page-shell">
+                    <section class="panel ifeo-registry mock-block">
+                        <div class="ifeo-actions-row ifeo-buttons">
                             <button class="action-btn install-btn" id="install-btn">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
@@ -322,131 +273,150 @@
                                 </svg>
                                 <span data-i18n="verify">VERIFY</span>
                             </button>
-                        </div>
-                        <div class="ifeo-result" id="ifeo-result"></div>
-                    </div>
-                </section>
-            </div>
-            </div>
-
-            <div class="main-grid-log">
-                <section class="panel system-log">
-                    <div class="panel-header">
-                        <div class="panel-title">
-                            <svg class="panel-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <polyline points="4 17 10 11 4 5"/>
-                                <line x1="12" y1="19" x2="20" y2="19"/>
-                            </svg>
-                            <span data-i18n="systemLog">SYSTEM OUTPUT LOG</span>
-                        </div>
-                    </div>
-                    <div class="panel-divider"></div>
-                    <div class="log-container" id="log-container"></div>
-                </section>
-            </div>
-        </main>
-        </div>
-
-        <!-- Page: Server Blocker -->
-        <div class="app-page hidden" id="page-server-blocker">
-            <main class="sb-shell">
-                <div class="sb-topbar">
-                    <div class="sb-topbar-left">
-                        <h2 class="sb-topbar-title" data-i18n="sbHeroTitle">Server Blocker</h2>
-                        <span class="sb-status-label" id="sb-status-label" data-i18n="sbStatusIdle">NOT CONNECTED</span>
-                    </div>
-                    <div class="sb-topbar-viz" id="sb-topbar-viz" aria-hidden="true">
-                        <div class="sb-viz-track" role="progressbar" aria-valuemin="0" aria-valuemax="100">
-                            <div class="sb-viz-fill" id="sb-viz-fill"></div>
-                            <div class="sb-viz-shimmer" id="sb-viz-shimmer"></div>
-                        </div>
-                        <canvas class="sb-viz-wave" id="sb-viz-wave" width="140" height="32" aria-hidden="true"></canvas>
-                        <span class="sb-viz-label" id="sb-viz-label"></span>
-                    </div>
-                    <span class="sb-topbar-badge" id="sb-blocked-badge" title="Blocked">0</span>
-                </div>
-
-                <div class="sb-layout">
-                    <aside class="sb-sidebar">
-                        <nav class="sb-menu">
-                            <div class="sb-menu-section">
-                                <span class="sb-menu-label" data-i18n="sbFilterRegion">Region</span>
-                                <div class="sb-chips" id="sb-region-chips"></div>
-                            </div>
-                            <div class="sb-menu-section sb-menu-section--actions">
-                                <button type="button" class="sb-btn sb-btn--primary" id="sb-start-btn" disabled>
-                                    <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                                    <span data-i18n="sbStartBlock">Start blocking</span>
-                                </button>
-                                <button type="button" class="sb-btn sb-btn--danger" id="sb-stop-btn" disabled>
-                                    <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>
-                                    <span data-i18n="sbStopBlock">Stop blocking</span>
-                                </button>
-                                <button type="button" class="sb-btn sb-btn--ghost" id="sb-ping-btn">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
-                                    </svg>
-                                    <span data-i18n="sbPingAll">Test ping</span>
-                                </button>
-                                <button type="button" class="sb-btn sb-btn--ghost" id="sb-auto-best-btn">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-                                    </svg>
-                                    <span data-i18n="sbAutoBest">Auto best server</span>
-                                </button>
-                                <button type="button" class="sb-btn sb-btn--ghost" id="sb-reset-btn">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <polyline points="23 4 23 10 17 10"/>
-                                        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
-                                    </svg>
-                                    <span data-i18n="sbReset">Reset selection</span>
-                                </button>
-                                <button type="button" class="sb-btn sb-btn--ghost sb-btn--compact" id="sb-refresh-btn">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <polyline points="23 4 23 10 17 10"/>
-                                        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
-                                    </svg>
-                                    <span data-i18n="sbRefreshCatalog">Refresh RU list</span>
-                                </button>
-                            </div>
-                        </nav>
-                    </aside>
-
-                    <div class="sb-main">
-                        <div class="sb-toolbar">
-                            <div class="sb-search-wrap">
+                            <button class="action-btn repair-btn" id="repair-btn">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                                    <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
                                 </svg>
-                                <input type="search" class="sb-search-input" id="sb-search"
-                                    placeholder="Search by name, pool or IP…" data-i18n-placeholder="sbSearch">
-                            </div>
-                            <label class="sb-check">
-                                <input type="checkbox" class="sb-check-input" id="sb-show-blocked">
-                                <span class="sb-check-box" aria-hidden="true"></span>
-                                <span class="sb-check-label" data-i18n="sbShowBlocked">Blocked only</span>
-                            </label>
+                                <span data-i18n="repair">REPAIR</span>
+                            </button>
+                            <button class="action-btn find-game-btn" id="find-game-btn">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="11" cy="11" r="8"/>
+                                    <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                                </svg>
+                                <span data-i18n="findGame">FIND GAME</span>
+                            </button>
                         </div>
-                        <div class="sb-pools sb-scroll" id="sb-pools"></div>
+                        <div class="ifeo-detail-panel">
+                            <div class="ifeo-detail-head">
+                                <span class="ifeo-detail-title" data-i18n="ifeo">IFEO</span>
+                                <div class="status-badge" id="ifeo-status">
+                                    <span class="status-dot inactive"></span>
+                                    <span id="ifeo-status-text" data-i18n="ifeoInactive">INACTIVE</span>
+                                </div>
+                            </div>
+                            <div class="ifeo-result ifeo-result--panel" id="ifeo-result"></div>
+                            <div class="game-search-block">
+                                <div id="game-search-alert" class="game-search-alert" role="alert" aria-live="polite"></div>
+                                <div class="game-pid-row" id="game-pid-row" data-running="false">
+                                    <span class="game-pid-label" data-i18n="gamePidLabel">Client PID</span>
+                                    <span class="game-pid-value" id="game-pid-value" data-i18n="gamePidNone">—</span>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                </main>
+            </div>
+
+            <!-- Servers -->
+            <div class="app-page hidden" id="page-servers">
+                <main class="sb-shell">
+                    <div class="sb-topbar">
+                        <div class="sb-topbar-left">
+                            <h2 class="sb-topbar-title" data-i18n="sbHeroTitle">Servers</h2>
+                            <span class="sb-status-label" id="sb-status-label" data-i18n="sbStatusIdle">NOT CONNECTED</span>
+                        </div>
+                        <div class="sb-topbar-viz" id="sb-topbar-viz" aria-hidden="true">
+                            <div class="sb-viz-track" role="progressbar" aria-valuemin="0" aria-valuemax="100">
+                                <div class="sb-viz-fill" id="sb-viz-fill"></div>
+                                <div class="sb-viz-shimmer" id="sb-viz-shimmer"></div>
+                            </div>
+                            <canvas class="sb-viz-wave" id="sb-viz-wave" width="140" height="32" aria-hidden="true"></canvas>
+                            <span class="sb-viz-label" id="sb-viz-label"></span>
+                        </div>
+                        <span class="sb-topbar-badge" id="sb-blocked-badge" title="Blocked">0</span>
                     </div>
-                </div>
-            </main>
+
+                    <div class="sb-layout">
+                        <aside class="sb-sidebar">
+                            <nav class="sb-menu">
+                                <div class="sb-menu-section">
+                                    <span class="sb-menu-label" data-i18n="sbFilterRegion">Region</span>
+                                    <div class="sb-chips" id="sb-region-chips"></div>
+                                </div>
+                                <div class="sb-menu-section sb-menu-section--actions">
+                                    <button type="button" class="sb-btn sb-btn--primary" id="sb-start-btn" disabled>
+                                        <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                                        <span data-i18n="sbStartBlock">Start blocking</span>
+                                    </button>
+                                    <button type="button" class="sb-btn sb-btn--danger" id="sb-stop-btn" disabled>
+                                        <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>
+                                        <span data-i18n="sbStopBlock">Stop blocking</span>
+                                    </button>
+                                    <button type="button" class="sb-btn sb-btn--ghost" id="sb-ping-btn">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+                                        </svg>
+                                        <span data-i18n="sbPingAll">Test ping</span>
+                                    </button>
+                                    <button type="button" class="sb-btn sb-btn--ghost" id="sb-auto-best-btn">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                                        </svg>
+                                        <span data-i18n="sbAutoBest">Auto best server</span>
+                                    </button>
+                                    <button type="button" class="sb-btn sb-btn--ghost" id="sb-reset-btn">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <polyline points="23 4 23 10 17 10"/>
+                                            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                                        </svg>
+                                        <span data-i18n="sbReset">Reset selection</span>
+                                    </button>
+                                    <button type="button" class="sb-btn sb-btn--ghost sb-btn--compact" id="sb-refresh-btn">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <polyline points="23 4 23 10 17 10"/>
+                                            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                                        </svg>
+                                        <span data-i18n="sbRefreshCatalog">Refresh servers</span>
+                                    </button>
+                                </div>
+                            </nav>
+                        </aside>
+
+                        <div class="sb-main">
+                            <div class="sb-toolbar">
+                                <div class="sb-search-wrap">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                                    </svg>
+                                    <input type="search" class="sb-search-input" id="sb-search"
+                                        placeholder="Search by name, pool or IP…" data-i18n-placeholder="sbSearch">
+                                </div>
+                                <label class="sb-check">
+                                    <input type="checkbox" class="sb-check-input" id="sb-show-blocked">
+                                    <span class="sb-check-box" aria-hidden="true"></span>
+                                    <span class="sb-check-label" data-i18n="sbShowBlocked">Blocked only</span>
+                                </label>
+                            </div>
+                            <div class="sb-pools sb-scroll" id="sb-pools"></div>
+                        </div>
+                    </div>
+                </main>
+            </div>
         </div>
 
-        <!-- Footer -->
-        <footer class="app-footer">
-            <div class="footer-left">
-                <span class="footer-en" data-i18n="footer">STALZONE JVM WRAPPER</span>
+        <!-- Shared log dock -->
+        <section class="panel system-log log-dock">
+            <div class="panel-header">
+                <div class="panel-title">
+                    <span data-i18n="systemLog">Log</span>
+                </div>
             </div>
+            <div class="panel-divider"></div>
+            <div class="log-container" id="log-container"></div>
+        </section>
+
+        <footer class="app-footer app-footer--slim">
             <div class="footer-right">
                 <span class="footer-author" data-i18n="footerAuthor">by Nyrokume.dev</span>
                 <span class="footer-divider">//</span>
-                <span class="footer-copyright">v1.6.5</span>
+                <span class="footer-copyright">v1.7.0</span>
             </div>
         </footer>
     </div>
 
-    <!-- Server Blocker — first visit warning -->
+    <div id="toast-stack" class="toast-stack" aria-live="polite" aria-relevant="additions"></div>
+
     <div class="welcome-modal hidden" id="sb-warning-modal" aria-hidden="true">
         <div class="welcome-card welcome-card--sb-warning custom-scroll" role="dialog" aria-labelledby="sb-warning-title">
             <div class="welcome-logo welcome-logo--warn">
@@ -471,7 +441,6 @@
         </div>
     </div>
 
-    <!-- Step 1: License agreement -->
     <div class="welcome-modal hidden" id="license-modal" aria-hidden="true">
         <div class="welcome-card welcome-card--license custom-scroll" role="dialog" aria-labelledby="license-title">
             <div class="welcome-logo">
@@ -497,7 +466,6 @@
         </div>
     </div>
 
-    <!-- Step 2: Authors, support & contacts -->
     <div class="welcome-modal hidden" id="info-modal" aria-hidden="true">
         <div class="welcome-card custom-scroll" role="dialog" aria-labelledby="info-title">
             <div class="welcome-logo">

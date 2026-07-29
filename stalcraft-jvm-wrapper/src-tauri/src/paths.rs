@@ -49,46 +49,40 @@ pub fn exbo_roaming_root() -> Option<PathBuf> {
     std::env::var_os("APPDATA").map(|appdata| PathBuf::from(appdata).join("EXBO"))
 }
 
-/// Canonical jvm_wrapper directory: exe dir → EXBO\jvm_wrapper → fallback.
+/// Canonical wrapper directory: always the folder containing the running exe.
+/// Both GUI and service.exe must sit together after unpacking wrapper.zip.
 pub fn wrapper_home() -> PathBuf {
     if let Ok(exe) = std::env::current_exe() {
         if let Some(parent) = exe.parent() {
-            if parent
-                .file_name()
-                .is_some_and(|n| n.eq_ignore_ascii_case(JVM_WRAPPER_DIR))
-            {
-                return parent.to_path_buf();
-            }
-            if parent.join("service.exe").is_file() {
-                return parent.to_path_buf();
-            }
+            return parent.to_path_buf();
         }
     }
+    // Last resort when current_exe() fails (extremely rare).
     if let Some(layout) = LauncherLayout::exbo() {
-        if layout.wrapper.is_dir() {
-            return layout.wrapper;
-        }
-        if layout.root.is_dir() {
-            return layout.wrapper;
-        }
+        return layout.wrapper;
     }
-    std::env::current_exe()
-        .ok()
-        .and_then(|e| e.parent().map(|p| p.to_path_buf()))
-        .unwrap_or_else(|| PathBuf::from(JVM_WRAPPER_DIR))
+    PathBuf::from(JVM_WRAPPER_DIR)
 }
 
 pub fn configs_dir() -> PathBuf {
     wrapper_home().join("configs")
 }
 
-/// Example JVM presets shipped beside the app (or project `examples/` in dev).
+/// Example JVM presets shipped beside the app.
+/// Debug builds may fall back to the repo `examples/` folder.
 pub fn examples_dir() -> PathBuf {
     let beside = wrapper_home().join("examples");
     if beside.is_dir() {
         return beside;
     }
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../examples")
+    #[cfg(debug_assertions)]
+    {
+        return PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../examples");
+    }
+    #[cfg(not(debug_assertions))]
+    {
+        beside
+    }
 }
 
 pub fn logs_dir() -> PathBuf {
@@ -309,6 +303,15 @@ mod tests {
     }
 
     #[test]
+    fn steam_stalzone_injects_and_classifies() {
+        let p = r"D:\Steam\steamapps\common\stalcraft\stalzone.exe";
+        assert!(is_launcher_binary(p));
+        assert!(should_inject_jvm(p));
+        assert_eq!(classify_target(p).kind, LauncherKind::Steam);
+        assert_eq!(target_kind(p), "launcher");
+    }
+
+    #[test]
     fn steam_game_javaw_injects() {
         let p = r"D:\Steam\steamapps\common\stalcraft\java\bin\javaw.exe";
         assert!(should_inject_jvm(p));
@@ -332,5 +335,30 @@ mod tests {
     fn cmd_exe_no_inject() {
         assert!(!should_inject_jvm(r"C:\Windows\System32\cmd.exe"));
         assert_eq!(target_kind(r"C:\Windows\System32\cmd.exe"), "other");
+    }
+
+    #[test]
+    fn wrapper_home_is_exe_parent_not_cwd_relative() {
+        let home = wrapper_home();
+        assert!(home.is_absolute() || home == PathBuf::from(JVM_WRAPPER_DIR));
+        if let Ok(exe) = std::env::current_exe() {
+            if let Some(parent) = exe.parent() {
+                assert_eq!(home, parent);
+            }
+        }
+    }
+
+    #[test]
+    fn examples_dir_prefers_sibling_folder() {
+        let beside = wrapper_home().join("examples");
+        let got = examples_dir();
+        if beside.is_dir() {
+            assert_eq!(got, beside);
+        } else {
+            #[cfg(not(debug_assertions))]
+            assert_eq!(got, beside);
+            #[cfg(debug_assertions)]
+            assert!(got.ends_with("examples"));
+        }
     }
 }

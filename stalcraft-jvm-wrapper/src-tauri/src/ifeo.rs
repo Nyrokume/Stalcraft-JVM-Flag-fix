@@ -1,8 +1,11 @@
 // ifeo.rs — EXBO stalcraft-jvm-optimization installer parity
+// Dual-view IFEO (64+32) + fail-closed verify so hooks don't silently drift.
 
 use std::ffi::OsStr;
 use std::os::windows::ffi::OsStrExt;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+
+use serde::Serialize;
 
 use crate::{config, log, paths, system};
 
@@ -83,15 +86,64 @@ pub fn should_inject_jvm(path: &str) -> bool {
     paths::should_inject_jvm(path)
 }
 
-#[derive(Debug, Clone)]
-pub struct IfeoEntry {
+#[derive(Debug, Clone, Serialize)]
+pub struct IfeoTargetHealth {
     pub target: String,
-    pub installed: bool,
-    pub debugger: String,
+    pub native64: Option<String>,
+    pub wow32: Option<String>,
+    pub ok: bool,
+    pub detail: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct IfeoHealth {
+    pub service_path: Option<String>,
+    pub service_present: bool,
+    pub targets: Vec<IfeoTargetHealth>,
+    pub all_ok: bool,
+    pub summary: String,
 }
 
 fn to_wide(s: &str) -> Vec<u16> {
     OsStr::new(s).encode_wide().chain(Some(0)).collect()
+}
+
+/// Normalize a Debugger / filesystem path for equality checks.
+pub fn normalize_path_key(s: &str) -> String {
+    let mut t = s.trim().trim_matches('"').to_string();
+    if let Some(rest) = t.strip_prefix(r"\\?\") {
+        t = rest.to_string();
+    } else if let Some(rest) = t.strip_prefix("//?/") {
+        t = rest.to_string();
+    }
+    t = t.replace('/', r"\");
+    while t.contains(r"\\") {
+        t = t.replace(r"\\", r"\");
+    }
+    t.to_lowercase()
+}
+
+fn strip_extended_prefix(p: PathBuf) -> PathBuf {
+    let s = p.to_string_lossy();
+    if let Some(rest) = s.strip_prefix(r"\\?\") {
+        PathBuf::from(rest)
+    } else {
+        p
+    }
+}
+
+/// Absolute, existing path suitable for writing into IFEO Debugger.
+fn canonical_service_path(p: &Path) -> Result<PathBuf, String> {
+    if !p.is_file() {
+        return Err(format!("{} is not a file: {}", SERVICE_NAME, p.display()));
+    }
+    let meta = std::fs::metadata(p).map_err(|e| format!("stat {}: {}", p.display(), e))?;
+    if meta.len() == 0 {
+        return Err(format!("{} is empty (0 bytes): {}", SERVICE_NAME, p.display()));
+    }
+    let canon = std::fs::canonicalize(p)
+        .unwrap_or_else(|_| p.to_path_buf());
+    Ok(strip_extended_prefix(canon))
 }
 
 pub fn service_ready() -> bool {
@@ -99,23 +151,24 @@ pub fn service_ready() -> bool {
 }
 
 fn resolve_service() -> Result<PathBuf, String> {
-    let service = paths::wrapper_home().join(SERVICE_NAME);
-    if !service.is_file() {
-        if let Ok(self_path) = std::env::current_exe() {
-            if let Some(dir) = self_path.parent() {
-                let alt = dir.join(SERVICE_NAME);
-                if alt.is_file() {
-                    return Ok(alt);
-                }
+    // Prefer exe-adjacent service.exe (distribution root = wherever the zip was unpacked).
+    if let Ok(self_path) = std::env::current_exe() {
+        if let Some(dir) = self_path.parent() {
+            let beside = dir.join(SERVICE_NAME);
+            if beside.is_file() {
+                return canonical_service_path(&beside);
             }
         }
-        return Err(format!(
-            "{} not found in {} (copy both exes from release)",
-            SERVICE_NAME,
-            paths::wrapper_home().display()
-        ));
     }
-    Ok(service)
+    let service = paths::wrapper_home().join(SERVICE_NAME);
+    if service.is_file() {
+        return canonical_service_path(&service);
+    }
+    Err(format!(
+        "{} not found next to this exe ({}) — keep both exes in the same folder after unpacking wrapper.zip",
+        SERVICE_NAME,
+        paths::wrapper_home().display()
+    ))
 }
 
 const KEY_READ_WRITE_NATIVE: u32 = KEY_SET_VALUE;
@@ -291,15 +344,153 @@ fn read_debugger_in_view(target: &str, wow64: u32) -> Option<String> {
         .filter(|s| !s.is_empty())
 }
 
-fn status_for(target: &str) -> IfeoEntry {
-    let debugger = read_debugger_in_view(target, 0)
-        .or_else(|| read_debugger_in_view(target, KEY_WOW64_32KEY))
-        .unwrap_or_default();
+/// True when registry Debugger value points at the expected service.exe path.
+pub fn debugger_matches(expected: &Path, got: &str) -> bool {
+    if got.trim().is_empty() {
+        return false;
+    }
+    let got_key = normalize_path_key(got);
+    if !got_key.ends_with("service.exe") {
+        return false;
+    }
+    got_key == normalize_path_key(&expected.to_string_lossy())
+}
 
-    IfeoEntry {
+fn target_health(target: &str, expected: Option<&Path>) -> IfeoTargetHealth {
+    let native64 = read_debugger_in_view(target, 0);
+    let wow32 = read_debugger_in_view(target, KEY_WOW64_32KEY);
+
+    let detail = match expected {
+        None => {
+            if native64.is_none() && wow32.is_none() {
+                "not_installed".to_string()
+            } else {
+                "service_missing".to_string()
+            }
+        }
+        Some(svc) => {
+            let n_ok = native64.as_ref().is_some_and(|d| debugger_matches(svc, d));
+            let w_ok = wow32.as_ref().is_some_and(|d| debugger_matches(svc, d));
+            if n_ok && w_ok {
+                "ok".to_string()
+            } else if native64.is_none() && wow32.is_none() {
+                "not_installed".to_string()
+            } else if native64.is_some() != wow32.is_some() || n_ok != w_ok {
+                if !n_ok && !w_ok {
+                    let sample = native64.as_deref().or(wow32.as_deref()).unwrap_or("");
+                    if !normalize_path_key(sample).ends_with("service.exe") {
+                        "wrong_debugger".to_string()
+                    } else {
+                        "path_mismatch".to_string()
+                    }
+                } else {
+                    "view_split".to_string()
+                }
+            } else if !n_ok {
+                let sample = native64.as_deref().unwrap_or("");
+                if !normalize_path_key(sample).ends_with("service.exe") {
+                    "wrong_debugger".to_string()
+                } else {
+                    "path_mismatch".to_string()
+                }
+            } else {
+                "not_ok".to_string()
+            }
+        }
+    };
+
+    let ok = detail == "ok";
+    IfeoTargetHealth {
         target: target.to_string(),
-        installed: !debugger.is_empty(),
-        debugger,
+        native64,
+        wow32,
+        ok,
+        detail,
+    }
+}
+
+/// Full dual-view health check against live adjacent service.exe.
+pub fn health() -> IfeoHealth {
+    let service = resolve_service().ok();
+    let service_present = service.is_some();
+    let expected = service.as_deref();
+
+    let targets: Vec<IfeoTargetHealth> = IFEO_TARGETS
+        .iter()
+        .map(|t| target_health(t, expected))
+        .collect();
+
+    let all_ok = service_present && targets.iter().all(|t| t.ok);
+
+    let mut lines = Vec::new();
+    for t in &targets {
+        let sample = t
+            .native64
+            .as_deref()
+            .or(t.wow32.as_deref())
+            .unwrap_or("");
+        let redacted = if sample.is_empty() {
+            String::new()
+        } else {
+            log::redact_path(sample)
+        };
+        match t.detail.as_str() {
+            "ok" => lines.push(format!("{}: ok (Debugger={})", t.target, redacted)),
+            "not_installed" => lines.push(format!("{}: not installed", t.target)),
+            "wrong_debugger" => lines.push(format!(
+                "{}: wrong debugger (expected service.exe, got {})",
+                t.target, redacted
+            )),
+            "path_mismatch" => lines.push(format!(
+                "{}: installed but path moved — reinstall/repair IFEO (Debugger={})",
+                t.target, redacted
+            )),
+            "view_split" => lines.push(format!(
+                "{}: view split (64-bit/32-bit Debugger mismatch) — reinstall/repair",
+                t.target
+            )),
+            "service_missing" => lines.push(format!(
+                "{}: Debugger set but service.exe MISSING locally",
+                t.target
+            )),
+            other => lines.push(format!("{}: {}", t.target, other)),
+        }
+    }
+
+    if let Some(ref path) = service {
+        lines.push(format!(
+            "service.exe: present ({})",
+            log::redact_path(&path.to_string_lossy())
+        ));
+    } else {
+        lines.push(
+            "service.exe: MISSING — keep service.exe next to stalcraft-jvm-wrapper.exe after unpack"
+                .to_string(),
+        );
+    }
+
+    if all_ok {
+        lines.push("verify: all_ok (6 targets × 2 registry views)".to_string());
+    } else {
+        lines.push("verify: FAILED — run INSTALL or REPAIR".to_string());
+    }
+
+    IfeoHealth {
+        service_path: service.map(|p| p.to_string_lossy().into_owned()),
+        service_present,
+        targets,
+        all_ok,
+        summary: lines.join("\n"),
+    }
+}
+
+/// Mandatory verification — Err when IFEO is not fully healthy.
+pub fn verify() -> Result<IfeoHealth, String> {
+    let h = health();
+    if h.all_ok {
+        Ok(h)
+    } else {
+        Err(h.summary)
     }
 }
 
@@ -317,8 +508,9 @@ pub fn install(_override_path: Option<&str>) -> Result<String, String> {
     config::ensure(&sys).map_err(|e| format!("config ensure: {}", e))?;
 
     log::append_wrapper_log_line(&format!(
-        "IFEO install_start targets={} debugger=service.exe",
-        IFEO_TARGETS.len()
+        "IFEO install_start targets={} debugger={}",
+        IFEO_TARGETS.len(),
+        log::redact_path(&service.to_string_lossy())
     ));
 
     for target in LEGACY_TARGETS {
@@ -335,12 +527,38 @@ pub fn install(_override_path: Option<&str>) -> Result<String, String> {
         ));
     }
 
+    let h = health();
+    if !h.all_ok {
+        log::append_wrapper_log_line("IFEO install_verify_failed");
+        return Err(format!(
+            "IFEO install wrote keys but mandatory verify failed:\n{}",
+            h.summary
+        ));
+    }
+
     let msg = format!(
-        "IFEO installed for stalzone.exe, stalzonew.exe, stalcraft.exe, stalcraftw.exe. Debugger = \"{}\"",
+        "IFEO installed for {} (64-bit + 32-bit views). Debugger = \"{}\"",
+        IFEO_TARGETS.join(", "),
         service.display()
     );
     log::append_wrapper_log_line("IFEO install_ok");
     Ok(msg)
+}
+
+/// Reinstall IFEO if health check fails (path moved / view split / missing).
+pub fn repair() -> Result<String, String> {
+    if !is_admin() {
+        return Err("Administrator privileges required for IFEO repair".to_string());
+    }
+    let h = health();
+    if h.all_ok {
+        log::append_wrapper_log_line("IFEO repair_skip already_ok");
+        return Ok(format!("IFEO already healthy.\n{}", h.summary));
+    }
+    log::append_wrapper_log_line("IFEO repair_start");
+    let msg = install(None)?;
+    log::append_wrapper_log_line("IFEO repair_ok");
+    Ok(format!("IFEO repaired.\n{msg}"))
 }
 
 pub fn uninstall() -> Result<String, String> {
@@ -367,15 +585,10 @@ pub fn uninstall() -> Result<String, String> {
     }
 }
 
-fn normalize_debugger_path(s: &str) -> String {
-    s.trim().trim_matches('"').to_lowercase()
-}
-
 fn verify_debugger_set(target: &str, service: &PathBuf) -> Result<(), String> {
-    let want = normalize_debugger_path(&service.to_string_lossy());
     for (view, flag) in [("64-bit", 0u32), ("32-bit", KEY_WOW64_32KEY)] {
         let got = read_debugger_in_view(target, flag).unwrap_or_default();
-        if normalize_debugger_path(&got) != want {
+        if !debugger_matches(service, &got) {
             return Err(format!(
                 "IFEO verify failed for {} ({view}): {:?}",
                 target, got
@@ -385,36 +598,8 @@ fn verify_debugger_set(target: &str, service: &PathBuf) -> Result<(), String> {
     Ok(())
 }
 
-fn debugger_points_to_service(debugger: &str) -> bool {
-    normalize_debugger_path(debugger).ends_with("service.exe")
-}
-
 pub fn status() -> Result<String, String> {
-    let entries: Vec<IfeoEntry> = IFEO_TARGETS.iter().map(|t| status_for(t)).collect();
-    let mut lines = Vec::new();
-    for e in &entries {
-        if e.installed && debugger_points_to_service(&e.debugger) {
-            lines.push(format!(
-                "{}: ok (Debugger={})",
-                e.target,
-                log::redact_path(&e.debugger)
-            ));
-        } else if e.installed {
-            lines.push(format!(
-                "{}: wrong debugger (expected service.exe, got {})",
-                e.target,
-                log::redact_path(&e.debugger)
-            ));
-        } else {
-            lines.push(format!("{}: not installed", e.target));
-        }
-    }
-    if service_ready() {
-        lines.push("service.exe: present".to_string());
-    } else {
-        lines.push("service.exe: MISSING — copy next to stalcraft-jvm-wrapper.exe".to_string());
-    }
-    Ok(lines.join("\n"))
+    Ok(health().summary)
 }
 
 #[cfg(test)]
@@ -433,6 +618,41 @@ mod tests {
         ] {
             assert!(IFEO_TARGETS.contains(&name));
         }
+    }
+
+    #[test]
+    fn normalize_strips_quotes_slashes_and_extended() {
+        assert_eq!(
+            normalize_path_key(r#""C:\Foo\service.exe""#),
+            r"c:\foo\service.exe"
+        );
+        assert_eq!(
+            normalize_path_key(r"\\?\C:\Foo/service.exe"),
+            r"c:\foo\service.exe"
+        );
+        assert_eq!(
+            normalize_path_key(r"C:/Foo\\service.exe"),
+            r"c:\foo\service.exe"
+        );
+    }
+
+    #[test]
+    fn debugger_matches_quoted_and_cased() {
+        let p = PathBuf::from(r"C:\Apps\wrapper\service.exe");
+        assert!(debugger_matches(
+            &p,
+            r#""C:\Apps\wrapper\service.exe""#
+        ));
+        assert!(debugger_matches(
+            &p,
+            r"C:\APPS\WRAPPER\SERVICE.EXE"
+        ));
+        assert!(!debugger_matches(
+            &p,
+            r#""C:\Other\service.exe""#
+        ));
+        assert!(!debugger_matches(&p, r"C:\Apps\wrapper\other.exe"));
+        assert!(!debugger_matches(&p, ""));
     }
 
     #[test]

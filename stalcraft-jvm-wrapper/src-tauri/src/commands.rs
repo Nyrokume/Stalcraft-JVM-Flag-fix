@@ -55,7 +55,7 @@ pub fn get_system_info() -> Result<SystemInfoResponse, String> {
 pub fn install_ifeo() -> Result<String, String> {
     if !ifeo::service_ready() {
         return Err(
-            "service.exe not found next to this app — copy both files from release/".to_string(),
+            "service.exe not found next to this app — unpack wrapper.zip and keep both exes in the same folder".to_string(),
         );
     }
     if ifeo::is_admin() {
@@ -65,7 +65,13 @@ pub fn install_ifeo() -> Result<String, String> {
     if code != 0 {
         return Err(format!("Install failed (exit {})", code));
     }
-    ifeo::status()
+    // Mandatory post-elevate verify — never report success on soft status alone.
+    match ifeo::verify() {
+        Ok(h) => Ok(h.summary),
+        Err(summary) => Err(format!(
+            "Install exited 0 but mandatory IFEO verify failed:\n{summary}"
+        )),
+    }
 }
 
 #[command]
@@ -83,6 +89,38 @@ pub fn uninstall_ifeo() -> Result<String, String> {
 #[command]
 pub fn check_status() -> Result<String, String> {
     ifeo::status()
+}
+
+#[command]
+pub fn verify_ifeo() -> Result<ifeo::IfeoHealth, String> {
+    Ok(ifeo::health())
+}
+
+#[command]
+pub fn find_game_processes() -> Result<crate::process::GameProcessSearchResult, String> {
+    Ok(crate::process::find_game_processes())
+}
+
+#[command]
+pub fn repair_ifeo() -> Result<String, String> {
+    if !ifeo::service_ready() {
+        return Err(
+            "service.exe not found next to this app — unpack wrapper.zip and keep both exes in the same folder".to_string(),
+        );
+    }
+    if ifeo::is_admin() {
+        return ifeo::repair();
+    }
+    let code = elevate::run_as_admin("--repair")?;
+    if code != 0 {
+        return Err(format!("Repair failed (exit {})", code));
+    }
+    match ifeo::verify() {
+        Ok(h) => Ok(format!("IFEO repaired.\n{}", h.summary)),
+        Err(summary) => Err(format!(
+            "Repair exited 0 but mandatory IFEO verify failed:\n{summary}"
+        )),
+    }
 }
 
 #[command]

@@ -20,13 +20,35 @@ const MOCK_SYSTEM = {
     active_config_exists: true,
 };
 
-const MOCK_STATUS = `service.exe: ok (dev mock)
-stalzone.exe: ok
-stalzonew.exe: ok
-stalcraft.exe: ok
-stalcraftw.exe: ok
-java.exe: ok
-javaw.exe: ok`;
+const MOCK_HEALTH = {
+    service_path: 'C:\\dev\\wrapper\\service.exe',
+    service_present: true,
+    all_ok: true,
+    summary: `stalzone.exe: ok (Debugger=C:\\dev\\wrapper\\service.exe)
+stalzonew.exe: ok (Debugger=C:\\dev\\wrapper\\service.exe)
+stalcraft.exe: ok (Debugger=C:\\dev\\wrapper\\service.exe)
+stalcraftw.exe: ok (Debugger=C:\\dev\\wrapper\\service.exe)
+java.exe: ok (Debugger=C:\\dev\\wrapper\\service.exe)
+javaw.exe: ok (Debugger=C:\\dev\\wrapper\\service.exe)
+service.exe: present (C:\\dev\\wrapper\\service.exe)
+verify: all_ok (6 targets × 2 registry views)`,
+    targets: [
+        'stalzone.exe',
+        'stalzonew.exe',
+        'stalcraft.exe',
+        'stalcraftw.exe',
+        'java.exe',
+        'javaw.exe',
+    ].map((target) => ({
+        target,
+        native64: '"C:\\dev\\wrapper\\service.exe"',
+        wow32: '"C:\\dev\\wrapper\\service.exe"',
+        ok: true,
+        detail: 'ok',
+    })),
+};
+
+const MOCK_STATUS = MOCK_HEALTH.summary;
 
 const MOCK_BLOCKING = { active: false };
 
@@ -50,6 +72,11 @@ export function createDevMockInvoke() {
                 return { ...MOCK_SYSTEM };
             case 'check_status':
                 return MOCK_STATUS;
+            case 'verify_ifeo':
+                return { ...MOCK_HEALTH, targets: MOCK_HEALTH.targets.map((t) => ({ ...t })) };
+            case 'find_game_processes':
+                // Default: game not running — never invent a PID in browser mock.
+                return { running: false, primary: null, processes: [] };
             case 'list_configs':
                 return {
                     names: [...MOCK_IMPORTED],
@@ -70,6 +97,8 @@ export function createDevMockInvoke() {
                 return '[dev] mock wrapper.log\n[dev] jvm_mode=MOCK';
             case 'install_ifeo':
                 return MOCK_STATUS;
+            case 'repair_ifeo':
+                return `IFEO repaired.\n${MOCK_STATUS}`;
             case 'uninstall_ifeo':
                 return 'IFEO uninstalled (dev mock).';
             case 'select_config':

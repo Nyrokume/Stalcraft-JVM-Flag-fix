@@ -11,19 +11,15 @@ import assert from 'node:assert/strict';
 
 
 import {
-
     flattenServerCatalog,
-
     fetchRuCatalog,
-
+    fetchAllCatalogs,
     getRegions,
-
     loadSettings,
-
+    loadCatalogCache,
     mergeServerCatalogs,
-
     saveSettings,
-
+    saveCatalogCache,
 } from '../src/server-blocker.js';
 
 import {
@@ -415,6 +411,97 @@ test('fetchRuCatalog falls back to bundled on fetch failure', async () => {
         const data = await fetchRuCatalog();
         assert.ok(Array.isArray(data?.pools));
         assert.ok(data.pools.length > 0);
+    } finally {
+        globalThis.fetch = original;
+    }
+});
+
+test('fetchAllCatalogs merges live regions and caches', async () => {
+    const original = globalThis.fetch;
+    const store = {};
+    const ls = globalThis.localStorage;
+    globalThis.localStorage = {
+        getItem: (k) => store[k] ?? null,
+        setItem: (k, v) => { store[k] = v; },
+        removeItem: (k) => { delete store[k]; },
+    };
+    globalThis.fetch = async (url) => {
+        const u = String(url);
+        if (u.includes('stalcraftx.ru')) {
+            return {
+                ok: true,
+                json: async () => ({
+                    mode: 'roxy',
+                    pools: [{ name: 'MSK1', tunnels: [{ name: 'MSK1-1', address: '1.1.1.1:29450' }] }],
+                }),
+            };
+        }
+        if (u.includes('/EU.json')) {
+            return {
+                ok: true,
+                json: async () => ({
+                    pools: [{ name: 'GAME-EU', tunnels: [{ name: 'GAME-EU-2', address: '2.2.2.2:29450' }] }],
+                }),
+            };
+        }
+        if (u.includes('/NA.json')) {
+            return {
+                ok: true,
+                json: async () => ({
+                    pools: [{ name: 'GAME-NA', tunnels: [{ name: 'GAME-NA-3', address: '3.3.3.3:29450' }] }],
+                }),
+            };
+        }
+        if (u.includes('/SEA.json')) {
+            return {
+                ok: true,
+                json: async () => ({
+                    pools: [{ name: 'GAME-SEA', tunnels: [{ name: 'GAME-SEA-2', address: '4.4.4.4:29450' }] }],
+                }),
+            };
+        }
+        throw new Error(`unexpected url ${u}`);
+    };
+    try {
+        const { roxy, ru, liveCount, sources } = await fetchAllCatalogs({
+            fallbackRoxy: { pools: [] },
+            fallbackRu: { pools: [] },
+        });
+        assert.equal(liveCount, 4);
+        assert.equal(sources.ru, 'live');
+        assert.equal(ru.pools[0].name, 'MSK1');
+        assert.equal(roxy.pools.length, 3);
+        assert.ok(roxy.pools.every((p) => ['EU', 'NA', 'SEA'].includes(p.region)));
+        const cached = loadCatalogCache();
+        assert.ok(cached);
+        assert.equal(cached.ru.pools[0].name, 'MSK1');
+        saveCatalogCache(roxy, ru);
+        assert.ok(loadCatalogCache());
+    } finally {
+        globalThis.fetch = original;
+        globalThis.localStorage = ls;
+    }
+});
+
+test('fetchAllCatalogs falls back per region on failure', async () => {
+    const original = globalThis.fetch;
+    globalThis.fetch = async () => {
+        throw new Error('offline');
+    };
+    try {
+        const fallbackRu = {
+            pools: [{ name: 'MSK1', tunnels: [{ name: 'MSK1-1', address: '9.9.9.9:29450' }] }],
+        };
+        const fallbackRoxy = {
+            pools: [
+                { name: 'GAME-EU', region: 'EU', tunnels: [{ name: 'GAME-EU-2', address: '8.8.8.8:29450' }] },
+            ],
+        };
+        const { ru, roxy, liveCount } = await fetchAllCatalogs({ fallbackRoxy, fallbackRu });
+        assert.equal(liveCount, 0);
+        assert.equal(ru.pools[0].name, 'MSK1');
+        assert.equal(roxy.pools[0].name, 'GAME-EU');
+        assert.equal(roxy.pools[0].region, 'EU');
     } finally {
         globalThis.fetch = original;
     }
