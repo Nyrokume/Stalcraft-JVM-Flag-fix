@@ -2,7 +2,7 @@
 ; Consumes staged files from ..\release\ (produced by scripts\package.ps1)
 
 #define MyAppName "STALZONE JVM Wrapper"
-#define MyAppVersion "1.7.1"
+#define MyAppVersion "1.7.2"
 #define MyAppPublisher "STALZONE JVM Wrapper"
 #define MyAppExeName "stalcraft-jvm-wrapper.exe"
 #define MyAppServiceName "service.exe"
@@ -14,10 +14,12 @@ AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppVerName={#MyAppName} {#MyAppVersion}
 AppPublisher={#MyAppPublisher}
-DefaultDirName={localappdata}\STALZONE JVM Wrapper
+DefaultDirName={userappdata}\EXBO\jvm_wrapper
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
-; Prefer LocalAppData so configs\ and logs\ stay writable without admin.
+; Prefer %AppData%\EXBO\jvm_wrapper so IFEO Debugger matches EXBO layout on any PC.
+; User can still change the path in the wizard (Steam / custom folder).
+; Keep both exes + examples side by side — required for portable IFEO.
 PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
 ArchitecturesAllowed=x64compatible

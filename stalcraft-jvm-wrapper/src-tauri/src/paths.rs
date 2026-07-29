@@ -83,27 +83,177 @@ fn path_has_exbo_segment(dir: &Path) -> bool {
 
 /// Known-good portable homes for each launcher (must contain service.exe after unpack).
 /// Used when the GUI was started from a misnamed folder (e.g. `EXBO\STALZONE JVM Wrapper`).
+/// Works on any PC: `%APPDATA%\EXBO\jvm_wrapper` + Steam libraries from registry / libraryfolders.vdf.
 pub fn known_wrapper_homes() -> Vec<PathBuf> {
-    let mut out = Vec::new();
+    let mut out: Vec<PathBuf> = Vec::new();
+    let mut push_unique = |p: PathBuf| {
+        if !out.iter().any(|x| path_eq_ci(x.as_path(), p.as_path())) {
+            out.push(p);
+        }
+    };
+
     if let Some(layout) = LauncherLayout::exbo() {
-        out.push(layout.wrapper);
+        push_unique(layout.wrapper);
     }
-    // Common Steam library roots — best-effort; missing paths are skipped by callers.
+
+    for steam_root in steam_roots() {
+        push_unique(
+            steam_root
+                .join(r"steamapps\common\STALCRAFT")
+                .join(JVM_WRAPPER_DIR),
+        );
+        for lib in steam_library_roots(&steam_root) {
+            push_unique(
+                lib.join(r"steamapps\common\STALCRAFT")
+                    .join(JVM_WRAPPER_DIR),
+            );
+        }
+    }
+
+    // Fallbacks when Steam registry is missing (still safe — skipped if folder absent).
     if let Some(program_files) = std::env::var_os("ProgramFiles") {
-        out.push(
+        push_unique(
             PathBuf::from(program_files)
                 .join(r"Steam\steamapps\common\STALCRAFT")
                 .join(JVM_WRAPPER_DIR),
         );
     }
     if let Some(program_files_x86) = std::env::var_os("ProgramFiles(x86)") {
-        out.push(
+        push_unique(
             PathBuf::from(program_files_x86)
                 .join(r"Steam\steamapps\common\STALCRAFT")
                 .join(JVM_WRAPPER_DIR),
         );
     }
+
     out
+}
+
+fn path_eq_ci(a: &Path, b: &Path) -> bool {
+    norm_lower(&a.to_string_lossy()) == norm_lower(&b.to_string_lossy())
+}
+
+fn steam_roots() -> Vec<PathBuf> {
+    let mut roots = Vec::new();
+    // HKCU\Software\Valve\Steam\SteamPath
+    if let Some(p) = read_reg_sz(
+        -2147483647i64 as isize, // HKEY_CURRENT_USER
+        r"Software\Valve\Steam",
+        "SteamPath",
+    ) {
+        let pb = PathBuf::from(p.replace('/', "\\"));
+        if pb.is_dir() {
+            roots.push(pb);
+        }
+    }
+    roots
+}
+
+fn steam_library_roots(steam_root: &Path) -> Vec<PathBuf> {
+    let vdf = steam_root.join(r"steamapps\libraryfolders.vdf");
+    let Ok(text) = std::fs::read_to_string(&vdf) else {
+        return Vec::new();
+    };
+    let mut libs = Vec::new();
+    // "path"\t\t"D:\\SteamLibrary"
+    for line in text.lines() {
+        let lower = line.to_lowercase();
+        let Some(idx) = lower.find("\"path\"") else {
+            continue;
+        };
+        let rest = &line[idx + 6..];
+        if let Some(start) = rest.find('"') {
+            let after = &rest[start + 1..];
+            if let Some(end) = after.find('"') {
+                let raw = after[..end].replace("\\\\", "\\").replace('/', "\\");
+                let p = PathBuf::from(raw);
+                if p.is_dir() {
+                    libs.push(p);
+                }
+            }
+        }
+    }
+    libs
+}
+
+/// Minimal REG_SZ reader (advapi32) — used for SteamPath on any user profile.
+fn read_reg_sz(hive: isize, subkey: &str, value: &str) -> Option<String> {
+    #[link(name = "advapi32")]
+    extern "system" {
+        fn RegOpenKeyExW(
+            hKey: isize,
+            lpSubKey: *const u16,
+            ulOptions: u32,
+            samDesired: u32,
+            phkResult: *mut isize,
+        ) -> i32;
+        fn RegQueryValueExW(
+            hKey: isize,
+            lpValueName: *const u16,
+            lpReserved: *mut u32,
+            lpType: *mut u32,
+            lpData: *mut u8,
+            lpcbData: *mut u32,
+        ) -> i32;
+        fn RegCloseKey(hKey: isize) -> i32;
+    }
+    fn wide(s: &str) -> Vec<u16> {
+        use std::os::windows::ffi::OsStrExt;
+        std::ffi::OsStr::new(s)
+            .encode_wide()
+            .chain(Some(0))
+            .collect()
+    }
+    let sk = wide(subkey);
+    let vn = wide(value);
+    let mut hkey: isize = 0;
+    let r = unsafe { RegOpenKeyExW(hive, sk.as_ptr(), 0, 0x0001, &mut hkey) }; // KEY_QUERY_VALUE
+    if r != 0 {
+        return None;
+    }
+    let mut len: u32 = 0;
+    let q = unsafe {
+        RegQueryValueExW(
+            hkey,
+            vn.as_ptr(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            &mut len,
+        )
+    };
+    if q != 0 || len == 0 {
+        unsafe { RegCloseKey(hkey) };
+        return None;
+    }
+    let mut buf = vec![0u8; len as usize + 2];
+    let mut actual = len;
+    let q = unsafe {
+        RegQueryValueExW(
+            hkey,
+            vn.as_ptr(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            buf.as_mut_ptr(),
+            &mut actual,
+        )
+    };
+    unsafe { RegCloseKey(hkey) };
+    if q != 0 {
+        return None;
+    }
+    let u16s: Vec<u16> = buf[..actual as usize]
+        .chunks(2)
+        .filter_map(|c| {
+            if c.len() == 2 {
+                Some(u16::from_le_bytes([c[0], c[1]]))
+            } else {
+                None
+            }
+        })
+        .take_while(|c| *c != 0)
+        .collect();
+    String::from_utf16(&u16s).ok()
 }
 
 /// Whether `dir` is safe to register as IFEO Debugger home without remapping.

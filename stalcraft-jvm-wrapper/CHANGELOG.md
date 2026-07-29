@@ -1,6 +1,4 @@
-# Changelog
-
-## v1.7.1 (2026-07-30)
+# Changelog\n\n## v1.7.2 (2026-07-30)\n\n- **Any PC**: Setup defaults to `%AppData%\\EXBO\\jvm_wrapper`; Steam library discovery via registry + libraryfolders.vdf; clearer PORTABLE.txt for multi-PC unpack\n\n## v1.7.1 (2026-07-30)
 
 - **IFEO fix**: never register Debugger under misnamed `EXBO\STALZONE JVM Wrapper\` — prefer canonical `…\EXBO\jvm_wrapper\service.exe` (and other `jvm_wrapper` homes) so flags inject on every game launch
 - **INSTALL/REPAIR**: remap + log when GUI was started from a non-canonical EXBO folder

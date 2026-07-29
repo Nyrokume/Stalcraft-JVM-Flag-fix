@@ -79,24 +79,26 @@ if (Test-Path $examplesDest) {
 Copy-Item (Join-Path $Root "examples") $examplesDest -Recurse -Force
 
 $portableTxt = @"
-STALZONE JVM Wrapper — portable package
-=======================================
-1. Unpack into a folder named jvm_wrapper (required for EXBO):
-     %AppData%\Roaming\EXBO\jvm_wrapper\
-   or …\steamapps\common\STALCRAFT\jvm_wrapper\
-2. Keep these files together:
-     stalcraft-jvm-wrapper.exe
-     service.exe
-     examples\
-3. Run stalcraft-jvm-wrapper.exe → INSTALL (UAC) → VERIFY → pick a JVM preset.
-4. Fully quit the game launcher, then start the game normally.
-5. Do NOT run service.exe manually (Windows starts it via IFEO on every launch).
-6. Find Game (PID) only checks that the client is running — flags are applied
-   by IFEO when the process is created, not after PID discovery.
-7. If you move this folder later: open the GUI and click REPAIR.
-8. Never unpack as EXBO\STALZONE JVM Wrapper\ — that breaks IFEO.
+STALZONE JVM Wrapper — works on ANY Windows PC
+===============================================
+Rule: keep both .exe + examples\ in one folder, then INSTALL once (UAC).
+IFEO stores an absolute path to THAT service.exe — flags inject on every launch.
 
-Configs and logs are created next to the .exe.
+Recommended folders (pick one):
+  EXBO:  %AppData%\Roaming\EXBO\jvm_wrapper\
+  Steam: …\steamapps\common\STALCRAFT\jvm_wrapper\
+  EGS:   …\Epic Games\STALCRAFT\jvm_wrapper\
+  VK:    …\VK Play\STALCRAFT\jvm_wrapper\
+
+Must-haves:
+  - Folder name for EXBO must be jvm_wrapper (NOT ""STALZONE JVM Wrapper"")
+  - stalcraft-jvm-wrapper.exe + service.exe side by side
+  - After INSTALL: VERIFY → pick JVM preset → fully quit launcher → start game
+  - Find Game (PID) only detects the client; inject is IFEO-at-create every time
+  - Moved the folder? Open GUI → REPAIR
+  - Never run service.exe manually
+
+Setup.exe default install path is %AppData%\EXBO\jvm_wrapper (change in wizard if Steam/EGS/VK).
 "@
 Set-Content -Path (Join-Path $Stage "PORTABLE.txt") -Value $portableTxt -Encoding UTF8
 

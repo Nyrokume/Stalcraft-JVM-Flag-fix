@@ -1,6 +1,6 @@
 {
   "name": "stalcraft-jvm-wrapper",
-  "version": "1.7.1",
+  "version": "1.7.2",
   "description": "STALZONE JVM Wrapper — Tauri desktop IFEO JVM tuning",
   "scripts": {
     "dev": "powershell -ExecutionPolicy Bypass -File scripts/dev.ps1",
