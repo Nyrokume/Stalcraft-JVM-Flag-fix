@@ -643,6 +643,14 @@ fn is_candidate_exe_name(name: &str) -> bool {
     )
 }
 
+fn is_launcher_exe_name(name: &str) -> bool {
+    let n = name.to_lowercase();
+    matches!(
+        n.as_str(),
+        "stalzone.exe" | "stalzonew.exe" | "stalcraft.exe" | "stalcraftw.exe"
+    )
+}
+
 fn query_process_image_path(pid: u32) -> Option<String> {
     unsafe {
         let handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid);
@@ -694,28 +702,39 @@ pub fn rank_matches(matches: &[GameProcessMatch]) -> Option<GameProcessMatch> {
         .cloned()
 }
 
-fn classify_match(pid: u32, path: &str) -> Option<GameProcessMatch> {
-    let name = Path::new(path)
-        .file_name()
-        .and_then(|s| s.to_str())
-        .unwrap_or("")
-        .to_string();
+/// Classify a live process. Path may be empty when OpenProcess is denied —
+/// launcher names (`stalzone*` / `stalcraft*`) are still accepted from any folder.
+fn classify_match(pid: u32, snapshot_name: &str, path: &str) -> Option<GameProcessMatch> {
+    let name = if !path.is_empty() {
+        Path::new(path)
+            .file_name()
+            .and_then(|s| s.to_str())
+            .unwrap_or(snapshot_name)
+            .to_string()
+    } else {
+        snapshot_name.to_string()
+    };
     let lower = name.to_lowercase();
 
-    let kind = if paths::is_launcher_binary(path) {
+    let kind = if is_launcher_exe_name(&lower) || (!path.is_empty() && paths::is_launcher_binary(path))
+    {
         "launcher"
-    } else if paths::is_game_java(path) {
+    } else if lower == "java.exe" || lower == "javaw.exe" {
+        // java/javaw need a path (or markers) so we never pick a system JDK.
+        if path.is_empty() || !paths::is_game_java(path) {
+            return None;
+        }
         "java"
     } else {
         return None;
     };
 
-    // Drop system java even if name matched snapshot filter.
-    if (lower == "java.exe" || lower == "javaw.exe") && kind != "java" {
-        return None;
-    }
+    let launcher = if path.is_empty() {
+        "unknown".to_string()
+    } else {
+        paths::classify_target(path).kind.as_str().to_string()
+    };
 
-    let launcher = paths::classify_target(path).kind.as_str().to_string();
     Some(GameProcessMatch {
         pid,
         name,
@@ -726,7 +745,8 @@ fn classify_match(pid: u32, path: &str) -> Option<GameProcessMatch> {
     })
 }
 
-/// Enumerate running STALZONE / STALCRAFT clients (incl. Steam `stalzone.exe`).
+/// Enumerate running STALZONE / STALCRAFT clients from anywhere on the PC.
+/// Matching is by process name (+ path markers for java/javaw) — not by wrapper install folder.
 /// Returns `running: false` and empty lists when the game is not on — never invents PIDs.
 pub fn find_game_processes() -> GameProcessSearchResult {
     let mut processes = Vec::new();
@@ -750,10 +770,11 @@ pub fn find_game_processes() -> GameProcessSearchResult {
                 if is_candidate_exe_name(&exe_name) {
                     let pid = pe.th32ProcessID;
                     if pid != 0 {
-                        if let Some(path) = query_process_image_path(pid) {
-                            if let Some(m) = classify_match(pid, &path) {
-                                processes.push(m);
-                            }
+                        let path = query_process_image_path(pid).unwrap_or_default();
+                        // Launchers: accept even when path query fails (any drive / folder).
+                        // Java: only when path proves game scope.
+                        if let Some(m) = classify_match(pid, &exe_name, &path) {
+                            processes.push(m);
                         }
                     }
                 }
@@ -838,5 +859,30 @@ mod discover_tests {
     #[test]
     fn empty_rank_is_none() {
         assert!(rank_matches(&[]).is_none());
+    }
+
+    #[test]
+    fn classify_launcher_without_path() {
+        let m = classify_match(42, "stalzone.exe", "").expect("name-only launcher");
+        assert_eq!(m.pid, 42);
+        assert_eq!(m.name, "stalzone.exe");
+        assert_eq!(m.kind, "launcher");
+        assert!(m.path.is_empty());
+    }
+
+    #[test]
+    fn classify_rejects_java_without_path() {
+        assert!(classify_match(7, "javaw.exe", "").is_none());
+    }
+
+    #[test]
+    fn classify_accepts_java_any_drive() {
+        let m = classify_match(
+            9,
+            "javaw.exe",
+            r"Z:\anywhere\STALCRAFT\runtime\java\bin\javaw.exe",
+        )
+        .expect("game java");
+        assert_eq!(m.kind, "java");
     }
 }

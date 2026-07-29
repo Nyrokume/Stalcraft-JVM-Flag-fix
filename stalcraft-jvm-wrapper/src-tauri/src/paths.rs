@@ -382,14 +382,23 @@ pub fn is_game_java(path: &str) -> bool {
         }
     }
 
+    // Any install location on the PC — match by folder markers, not a fixed drive/path.
     const MARKERS: &[&str] = &[
         r"\runtime\stalcraft",
         r"\stalcraft\",
+        r"\stalzone\",
         r"\exbo\",
         r"\steamapps\common\stalcraft",
+        r"\epic games\stalcraft",
+        r"\vkplay\stalcraft",
     ];
     let lower = norm_lower(path);
-    MARKERS.iter().any(|m| lower.contains(&m.to_lowercase()))
+    if MARKERS.iter().any(|m| lower.contains(&m.to_lowercase())) {
+        return true;
+    }
+    // Portable / renamed roots: …\java\bin\javaw.exe under a STALCRAFT/STALZONE/EXBO tree.
+    lower.contains(r"\java\bin\")
+        && (lower.contains("stalcraft") || lower.contains("stalzone") || lower.contains(r"\exbo\"))
 }
 
 pub fn is_game_scoped(path: &str) -> bool {
@@ -525,6 +534,13 @@ mod tests {
         let p = r"E:\Portable\STALCRAFT\stalzone.exe";
         assert!(should_inject_jvm(p));
         assert_eq!(scope_label(p), "unknown");
+    }
+
+    #[test]
+    fn portable_java_bin_under_stalcraft_tree() {
+        let p = r"E:\Games\My STALCRAFT Client\jre\java\bin\javaw.exe";
+        assert!(is_game_java(p));
+        assert!(should_inject_jvm(p));
     }
 
     #[test]

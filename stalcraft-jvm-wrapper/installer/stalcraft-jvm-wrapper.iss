@@ -2,7 +2,7 @@
 ; Consumes staged files from ..\release\ (produced by scripts\package.ps1)
 
 #define MyAppName "STALZONE JVM Wrapper"
-#define MyAppVersion "1.7.2"
+#define MyAppVersion "1.7.3"
 #define MyAppPublisher "STALZONE JVM Wrapper"
 #define MyAppExeName "stalcraft-jvm-wrapper.exe"
 #define MyAppServiceName "service.exe"

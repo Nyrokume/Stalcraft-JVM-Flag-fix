@@ -2,7 +2,7 @@
 
 Tauri/Rust port of [EXBO-Community/stalcraft-jvm-optimization](https://github.com/EXBO-Community/stalcraft-jvm-optimization) for **STALZONE** (EXBO, Steam, EGS, VK Play).
 
-**Latest release:** [v1.7.2](https://github.com/Nyrokume/Stalcraft-JVM-Flag-Fix/releases/latest) · `wrapper.zip` · Setup.exe
+**Latest release:** [v1.7.3](https://github.com/Nyrokume/Stalcraft-JVM-Flag-Fix/releases/latest) · `wrapper.zip` · Setup.exe
 
 ## Screenshots
 
