@@ -951,6 +951,9 @@ export async function initServerBlocker({ t, invoke = null }) {
         try {
             const msg = await invoke('stop_server_blocking');
             appliedHosts = [];
+            // ponytail: unlock clears selection so pool cards show Разрешён, not stale Заблокирован
+            settings.blocked = [];
+            saveSettings(settings);
             statusMessage = t('sbBlockStopped');
             window.__showToast?.(t('toastSbStopped'), 'success');
             console.info(msg);
